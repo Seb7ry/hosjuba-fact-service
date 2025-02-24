@@ -1,19 +1,28 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Request, UseGuards } from '@nestjs/common';
 import { AdmUsrService } from '../service/admusr.service';
-import { AdmUsr } from '../entities/admusr.entity';
+import { JwtAuthGuard } from 'src/guards/jwy-auth.guard';
 
 @Controller('admusr')
 export class AdmUsrController {
     constructor(private readonly admUserService: AdmUsrService) { }
 
     @Get()
-    async getAllUsers(): Promise<any[]> {
+    @UseGuards(JwtAuthGuard)
+    async getAllUsers(@Request() req): Promise<any[]> {
+        console.log("Usuario autenticado:", req.user);
         return this.admUserService.findAll();
     }
 
     @Get(':id')
-    async getUserById(@Param('id') id:string): Promise<any | null> {
+    async getUserById(@Request() req, @Param('id') id:string): Promise<any | null> {
+        console.log("Usuario autenticado:", req.user);
         return this.admUserService.findById(id);
+    }
+
+    @Get(':user')
+    async getUserByUsername(@Request() req, @Param('username') username:string): Promise<any | null> {
+        console.log("Usuario autenticado:", req.user);
+        return this.admUserService.findByUser(username);
     }
 }
 

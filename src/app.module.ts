@@ -1,18 +1,22 @@
-import { ConfigurableModuleBuilder, Module, OnModuleInit } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { DatabaseService } from './service/database.service';
 import { AdmUsr } from './entities/admusr.entity';
 import { AdmUsrController } from './controllers/admusr.controller';
 import { AdmUsrService } from './service/admusr.service';
 import * as dotenv from 'dotenv';
+import { AuthModule } from './modules/auth.module';
+import { MongooseModule } from '@nestjs/mongoose';
 
 dotenv.config();
 
 @Module({
   imports: [
+    AuthModule,
+    MongooseModule.forRoot(`mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}` +
+                          `@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=${process.env.MONGO_AUTH_SOURCE}`),
     ConfigModule.forRoot(),
     TypeOrmModule.forRoot({
       type: process.env.DB_TYPE as any,
@@ -35,19 +39,10 @@ dotenv.config();
     AdmUsrController],
   providers: [
     AppService,
-    DatabaseService,
     AdmUsrService],
 })
 export class AppModule implements OnModuleInit{
-  constructor(private databaseService: DatabaseService){};
+  constructor(){};
   async onModuleInit(){
-    console.log('Servidor SQL:', process.env.DB_HOST);
-    console.log('me conecté a la base de datos por fin la pta madre :DDDD');
-
-    const tableCount = await this.databaseService.countTablesVerf();
-    console.log(`cantidad de tablas ${tableCount} joa mano :c `);
-
-    const tables = await this.databaseService.listTables();
-    console.log('📋 Tablas en la base de datos:', tables);
   }
 }
