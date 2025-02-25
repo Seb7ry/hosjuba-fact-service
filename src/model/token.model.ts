@@ -1,16 +1,23 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import * as dotenv from 'dotenv';
 
+dotenv.config();
 export type TokenDocument = Token & Document;
 
-@Schema({ collection: 'tokens '})
+@Schema({ collection: 'tokens' })
 export class Token {
     @Prop({ required: true, unique: true })
     _id: string;
 
     @Prop({ required: true })
-    refreshToken?: string
+    refreshToken?: string;
 
-    @Prop({ required: true, expires: '604800', default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)})
+    @Prop({
+        required: true,
+        expires: parseInt(process.env.TOKEN_EXPIRATION_DB, 10), 
+        default: () => new Date()
+    })
     expiresAt: Date;
 }
 

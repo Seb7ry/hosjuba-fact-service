@@ -10,6 +10,8 @@ import * as dotenv from 'dotenv';
 import { AuthModule } from './modules/auth.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TokenModule } from './modules/token.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TokenService } from './service/token.service';
 
 dotenv.config();
 
@@ -41,7 +43,8 @@ dotenv.config();
     AdmUsrController],
   providers: [
     AppService,
-    AdmUsrService],
+    AdmUsrService,
+    TokenService],
 })
 export class AppModule implements OnModuleInit{
   constructor(){};
