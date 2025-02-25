@@ -9,14 +9,14 @@ import { AdmUsrService } from './service/admusr.service';
 import * as dotenv from 'dotenv';
 import { AuthModule } from './modules/auth.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UserModule } from './modules/user.module';
+import { TokenModule } from './modules/token.module';
 
 dotenv.config();
 
 @Module({
   imports: [
     AuthModule,
-    UserModule,
+    TokenModule,
     MongooseModule.forRoot(`mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}` +
                           `@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=${process.env.MONGO_AUTH_SOURCE}`),
     ConfigModule.forRoot(),

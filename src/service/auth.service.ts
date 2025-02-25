@@ -1,13 +1,13 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { AdmUsrService } from "./admusr.service";
 import { JwtService } from "@nestjs/jwt";
-import { UserService } from "./user.service";
+import { TokenService } from "./token.service";
 
 @Injectable()
 export class AuthService {
     constructor(
         private readonly admUsrService: AdmUsrService,
-        private readonly userService: UserService,
+        private readonly tokenService: TokenService,
         private readonly jwtService: JwtService,
     ) {}
 
@@ -16,24 +16,24 @@ export class AuthService {
 
         if(password.trim() !== user.AUsrPsw.toString().trim()) throw new UnauthorizedException(`Contraseña incorrecta.}`);
     
-        const payload = { sub: user._id, username: user.username };
+        const payload = { sub: user.AUsrId, username: user.AUsrId };
         const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' }); 
         const refreshToken = this.jwtService.sign(
-            { sub: user._id, type: 'refresh'},
+            { sub: user.AUsrId, type: 'refresh'},
             { expiresIn: '7d'}
         );
     
-        await this.userService.updateRefreshToken(user._id, refreshToken);
+        await this.tokenService.updateRefreshToken(user.AUsrId.trim(), refreshToken);
     
         return { access_token: accessToken, refresh_token: refreshToken };
     }
 
     async refreshToken(username: string, refreshToken: string): Promise<{ access_token: string }> {
-        const isValid = await this.userService.validateRefreshToken(username, refreshToken);
+        const isValid = await this.tokenService.validateRefreshToken(username, refreshToken);
         if (!isValid) throw new UnauthorizedException('Refresh Token inválido');
     
         const user = await this.admUsrService.findByUser(username);
-        const payload = { sub: user._id, username: user.username };
+        const payload = { sub: user.AUsrId, username: user.AUsrId };
         const newAccessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
     
         return { access_token: newAccessToken };
