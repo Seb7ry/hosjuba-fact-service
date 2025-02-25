@@ -18,9 +18,9 @@ export class UserService {
     }
 
     async validateRefreshToken(userId: string, refreshToken: string): Promise<boolean> {
-      const user = await this.userModel.findById(userId).exec();
-      if (!user || !user.refreshToken) return false;
-  
-      return bcrypt.compare(refreshToken, user.refreshToken);
+        const user = await this.userModel.findById(userId).exec();
+        if (!user || !user.refreshToken) return false;
+
+        return bcrypt.compare(refreshToken, user.refreshToken);
     }
 }

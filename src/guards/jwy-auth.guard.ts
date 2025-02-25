@@ -16,6 +16,10 @@ export class JwtAuthGuard implements CanActivate {
         const token = authHeader.split(' ')[1];
         try{
             const decoded = this.jwtService.verify(token);
+
+            if(decoded.type === 'refresh'){
+                throw new UnauthorizedException('No puedes usar el token de refrescar para generar autorización a una solicitud.');
+            }
             request.user = decoded;
             return true;
         } catch (error){

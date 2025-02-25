@@ -17,8 +17,11 @@ export class AuthService {
         if(password.trim() !== user.AUsrPsw.toString().trim()) throw new UnauthorizedException(`Contraseña incorrecta.}`);
     
         const payload = { sub: user._id, username: user.username };
-        const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' }); 
-        const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' }); 
+        const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' }); 
+        const refreshToken = this.jwtService.sign(
+            { sub: user._id, type: 'refresh'},
+            { expiresIn: '7d'}
+        );
     
         await this.userService.updateRefreshToken(user._id, refreshToken);
     

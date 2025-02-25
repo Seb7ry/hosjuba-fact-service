@@ -7,18 +7,20 @@ import { AuthContoller } from 'src/controllers/auth.controller';
 import { AdmUsrModule } from './admusr.module';
 import { JwtAuthGuard } from 'src/guards/jwy-auth.guard';
 import { UserService } from 'src/service/user.service';
+import { UserModule } from './user.module';
 
 dotenv.config();
 
 @Module({
   imports: [
     AdmUsrModule,
+    UserModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: process.env.TIME_SESSION },
     }),
   ],
-  providers: [AuthService, AdmUsrService, JwtAuthGuard, UserService],
+  providers: [AuthService, AdmUsrService, JwtAuthGuard],
   controllers: [AuthContoller],
   exports: [AuthService, JwtModule, JwtAuthGuard]
 })
