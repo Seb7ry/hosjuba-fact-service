@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Request, UseGuards } from '@nestjs/common';
 import { AdmUsrService } from '../service/admusr.service';
-import { JwtAuthGuard } from 'src/guards/jwy-auth.guard';
+import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 
 @Controller('admusr')
 export class AdmUsrController {

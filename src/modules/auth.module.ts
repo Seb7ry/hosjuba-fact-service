@@ -5,7 +5,7 @@ import { AuthService } from '../service/auth.service';
 import { AdmUsrService } from '../service/admusr.service';
 import { AuthContoller } from 'src/controllers/auth.controller';
 import { AdmUsrModule } from './admusr.module';
-import { JwtAuthGuard } from 'src/guards/jwy-auth.guard';
+import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { TokenModule } from './token.module';
 
 dotenv.config();
