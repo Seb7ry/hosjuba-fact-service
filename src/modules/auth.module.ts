@@ -1,26 +1,29 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import * as dotenv from 'dotenv';
 import { AuthService } from '../service/auth.service';
 import { AdmUsrService } from '../service/admusr.service';
-import { AuthContoller } from 'src/controllers/auth.controller';
-import { AdmUsrModule } from './admusr.module';
+import { AuthController } from 'src/controllers/auth.controller';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { TokenModule } from './token.module';
-
-dotenv.config();
+import { LogModule } from './log.module';
+import { AdmUsrModule } from './admusr.module';
 
 @Module({
   imports: [
+    TokenModule,  // Módulo que maneja los tokens
+    LogModule,
     AdmUsrModule,
-    TokenModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: process.env.TIME_SESSION },
+      secret: process.env.JWT_SECRET,  // Clave secreta para los JWT
+      signOptions: { expiresIn: process.env.TIME_SESSION }, // Tiempo de vida del token
     }),
   ],
-  providers: [AuthService, AdmUsrService, JwtAuthGuard],
-  controllers: [AuthContoller],
-  exports: [AuthService, JwtModule, JwtAuthGuard]
+  providers: [
+    AuthService,  // Servicio de autenticación
+    AdmUsrService, // Servicio de usuarios
+    JwtAuthGuard,  // Guardián de autenticación
+  ],
+  controllers: [AuthController],  // Controlador que maneja las rutas de autenticación
+  exports: [AuthService, JwtModule, JwtAuthGuard],
 })
 export class AuthModule {}

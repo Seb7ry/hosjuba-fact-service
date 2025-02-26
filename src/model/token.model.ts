@@ -44,7 +44,7 @@ export class Token {
     @Prop({
         required: true,
         expires: parseInt(process.env.TOKEN_EXPIRATION_DB, 10), 
-        default: () => new Date()
+        default: () => new Date(),
     })
     expiresAt: Date;
 }
