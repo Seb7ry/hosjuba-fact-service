@@ -13,6 +13,7 @@ import { TokenModule } from './modules/token.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TokenService } from './service/token.service';
 import { LogModule } from './modules/log.module';
+import { AdmUsrModule } from './modules/admusr.module';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ dotenv.config();
     TokenModule,
     /** Módulo para la gestión de los logs en MongoDB y en archivo local */
     LogModule,
+    AdmUsrModule,
     /** Conexión con MongoDB usando las variables de entorno */
     MongooseModule.forRoot(`mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}` +
                           `@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=${process.env.MONGO_AUTH_SOURCE}`),
@@ -56,7 +58,6 @@ dotenv.config();
   ],
   controllers: [
     AppController,  // Controlador principal de la aplicación
-    AdmUsrController, // Controlador de usuarios administrativos
   ],
   providers: [
     AppService,  // Servicio principal de la aplicación

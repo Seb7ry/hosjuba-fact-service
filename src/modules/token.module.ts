@@ -4,9 +4,12 @@ import { Token, TokenSchema } from 'src/model/token.model';
 import { TokenService } from 'src/service/token.service';
 import { LogModule } from './log.module';
 import { JwtModule } from '@nestjs/jwt';
+import { AdmUsrModule } from './admusr.module';
+import { TokenController } from 'src/controllers/token.controller';
 
 @Module({
     imports: [
+        AdmUsrModule,
         MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]),
         JwtModule.register({
             secret: process.env.JWT_SECRET,  // Añadir la configuración de JWT si es necesario
@@ -14,6 +17,7 @@ import { JwtModule } from '@nestjs/jwt';
         }),
         LogModule,
     ],
+    controllers: [TokenController],
     providers: [TokenService],
     exports: [TokenService, MongooseModule],
 })

@@ -14,7 +14,7 @@ export type TokenDocument = Token & Document;
 
 /**
  * Esquema de la colección 'tokens' en MongoDB.
- * Esta colección almacena los refresh tokens de los usuarios autenticados.
+ * Esta colección almacena los refresh tokens y access tokens de los usuarios autenticados.
  */
 @Schema({ collection: 'tokens' })
 export class Token {
@@ -23,7 +23,7 @@ export class Token {
      * Identificador único del token, en este caso, se usa el username del usuario.
      * Este campo es obligatorio y debe ser único.
      */
-    @Prop({ required: true, unique: true })
+    @Prop({ required: true })
     _id: string;
 
     /**
@@ -32,6 +32,13 @@ export class Token {
      */
     @Prop({ required: true })
     refreshToken?: string;
+
+    /**
+     * Access token generado para el usuario.
+     * Este es el token que se usa para acceder a los endpoints protegidos.
+     */
+    @Prop({ required: true })
+    accessToken?: string;
 
     /**
      * Campo que determina la fecha de expiración del documento en la base de datos.
@@ -46,7 +53,14 @@ export class Token {
         expires: parseInt(process.env.TOKEN_EXPIRATION_DB, 10), 
         default: () => new Date(),
     })
-    expiresAt: Date;
+    expiresAtRefresh: Date;
+
+    /**
+     * Fecha de expiración del token de acceso.
+     * Especifica cuándo el access token debe ser eliminado de la base de datos.
+     */
+    @Prop({ required: true })
+    expiresAtAccess: Date;
 }
 
 /** 

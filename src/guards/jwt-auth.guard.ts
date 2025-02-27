@@ -1,5 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Logger } from "@nestjs/common";
 import { JwtService, TokenExpiredError, JsonWebTokenError } from "@nestjs/jwt";
+import * as dotenv from 'dotenv';
+dotenv.config();  // Carga las variables del archivo .env
 
 /**
  * Guardián de autenticación que protege rutas al verificar el token de acceso JWT.
@@ -47,8 +49,7 @@ export class JwtAuthGuard implements CanActivate {
 
         try {
             // Verificamos y decodificamos el token
-            const decoded = this.jwtService.verify(token);
-
+            const decoded = this.jwtService.verify(token, { secret: process.env.JWT_SECRET });
             // Verificamos que el token no sea de refresco
             if (decoded.type === 'refresh') {
                 this.logger.warn(`Intento de uso de token de refresco en autenticación. Usuario: ${decoded.username}`);

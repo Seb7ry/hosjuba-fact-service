@@ -7,6 +7,8 @@ import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { TokenModule } from './token.module';
 import { LogModule } from './log.module';
 import { AdmUsrModule } from './admusr.module';
+import * as dotenv from 'dotenv';
+dotenv.config();  // Carga las variables del archivo .env
 
 @Module({
   imports: [
