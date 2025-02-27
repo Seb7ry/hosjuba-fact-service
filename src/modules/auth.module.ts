@@ -1,12 +1,12 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { AuthService } from '../service/auth.service';
-import { AdmUsrService } from '../service/admusr.service';
 import { AuthController } from 'src/controllers/auth.controller';
+import { AdmUsrService } from '../service/admusr.service';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import { AuthService } from '../service/auth.service';
+import { AdmUsrModule } from './admusr.module';
 import { TokenModule } from './token.module';
 import { LogModule } from './log.module';
-import { AdmUsrModule } from './admusr.module';
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import * as dotenv from 'dotenv';
 dotenv.config();  // Carga las variables del archivo .env
 

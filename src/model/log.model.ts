@@ -3,10 +3,7 @@ import { Document } from "mongoose";
 
 export type LogDocument = Log & Document;
 
-/**
- * Esquema para almacenar logs de la aplicación en MongoDB.
- */
-@Schema({ collection: 'logs', timestamps: true }) // `timestamps` añade `createdAt` automáticamente
+@Schema({ collection: 'logs', timestamps: true }) 
 export class Log {
     @Prop({ required: true })
     level: 'info' | 'warn' | 'error' | 'debug';
@@ -15,7 +12,7 @@ export class Log {
     message: string;
 
     @Prop()
-    context?: string; // Contexto del log (ej. "AuthService")
+    context?: string; 
 
     @Prop({ default: new Date() })
     timestamp?: Date;

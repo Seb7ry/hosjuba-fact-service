@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TokenController } from 'src/controllers/token.controller';
 import { Token, TokenSchema } from 'src/model/token.model';
 import { TokenService } from 'src/service/token.service';
-import { LogModule } from './log.module';
-import { JwtModule } from '@nestjs/jwt';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AdmUsrModule } from './admusr.module';
-import { TokenController } from 'src/controllers/token.controller';
+import { LogModule } from './log.module';
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
     imports: [

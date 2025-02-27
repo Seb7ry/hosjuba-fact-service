@@ -1,8 +1,8 @@
-import { Body, Controller, Post, UnauthorizedException } from "@nestjs/common";
-import { LoginDto } from "src/dto/login.dto";
+import { Body, Controller, Post, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { AuthService } from "src/service/auth.service";
 import { LogService } from "src/service/log.service";
-import { TokenService } from "src/service/token.service";
+import { LoginDto } from "src/dto/login.dto";
 
 @Controller('auth')
 export class AuthController {
@@ -26,6 +26,7 @@ export class AuthController {
     }
 
     @Post('logout')
+    @UseGuards(JwtAuthGuard)
     async logout(@Body() body: { username: string }) {
         if (!body.username) {
             throw new UnauthorizedException('Username requerido');

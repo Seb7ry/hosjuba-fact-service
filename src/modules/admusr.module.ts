@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdmUsrController } from 'src/controllers/admusr.controller';
 import { AdmUsrService } from '../service/admusr.service';
 import { AdmUsr } from '../entities/admusr.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { LogModule } from './log.module';
+import { JwtModule } from '@nestjs/jwt';
+import { Module } from '@nestjs/common';
 
 /**
  * Módulo de administración de usuarios (`AdmUsrModule`).
@@ -13,8 +15,11 @@ import { LogModule } from './log.module';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([AdmUsr]), // Registra la entidad `AdmUsr` en TypeORM
-            LogModule], 
-  providers: [AdmUsrService], // Define `AdmUsrService` como proveedor del módulo
-  exports: [AdmUsrService], // Permite que otros módulos usen `AdmUsrService`
+            LogModule,
+            JwtModule
+            ],
+  controllers: [AdmUsrController],
+  providers: [AdmUsrService],
+  exports: [AdmUsrService],
 })
 export class AdmUsrModule {}

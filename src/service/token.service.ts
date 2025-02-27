@@ -1,11 +1,11 @@
-import { Injectable } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { Token, TokenDocument } from "src/model/token.model"; 
-import * as bcrypt from 'bcrypt';
-import { LogService } from "./log.service";
 import { AdmUsrService } from "./admusr.service";
+import { InjectModel } from "@nestjs/mongoose";
+import { Injectable } from "@nestjs/common";
+import { LogService } from "./log.service";
+import { JwtService } from "@nestjs/jwt";
+import { Model } from "mongoose";
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class TokenService {
@@ -17,13 +17,17 @@ export class TokenService {
     ) {}
 
     private generatePayload(user: any, type: string) {
-        return { sub: user.AUsrId, username: user.AUsrId, type }; // Agrega el 'type' aquí
+        return { sub: user.AUsrId, username: user.AUsrId, type }; 
     }
 
-    async findTokenByName(username: string): Promise<Token | null> {
-        await this.logService.log('info', `🔍 Buscando token para usuario: ${username}`, 'TokenService');
-        return this.tokenModel.findOne({ _id: username }).exec();
-    }
+    async findTokenByName(_id: string): Promise<Token | null> {
+        const token = await this.tokenModel.findOne({ _id: _id.trim() }).exec(); 
+    
+        if (!token) {
+            await this.logService.log('warn', `❌ No se encontró un token para el usuario: ${_id}`, 'TokenService');
+        }
+        return token;
+    }    
 
     private generateTimeToken(payload: any, expiration: string) {
         const now = Date.now();
@@ -72,7 +76,7 @@ export class TokenService {
     async saveRefreshToken(username: string, refreshToken: string, expiresAtRefresh: Date): Promise<void> {
         const hashedToken = await bcrypt.hash(refreshToken, 10);
         await this.tokenModel.updateOne(
-            { _id: username }, 
+            { _id: username.trim() }, 
             { refreshToken: hashedToken, expiresAtRefresh: expiresAtRefresh },
             { upsert: true }
         );
@@ -81,7 +85,7 @@ export class TokenService {
     async saveAccessToken(username: string, accessToken: string, expiresAtAccess: Date): Promise<void> {
         const hashedToken = await bcrypt.hash(accessToken, 10);
         await this.tokenModel.updateOne(
-            { _id: username }, 
+            { _id: username.trim() }, 
             { accessToken: hashedToken, expiresAtAccess: expiresAtAccess },
             { upsert: true }
         );
@@ -110,11 +114,31 @@ export class TokenService {
         return true;
     }
 
-    async deleteRefreshToken(username: string): Promise<boolean> {
-        const result = await this.tokenModel.deleteOne({ _id: username });
-        return result.deletedCount > 0;
+    async deleteToken(username: string): Promise<boolean> {
+        // Verificamos que el username sea un string válido y sin espacios
+        if (typeof username !== 'string' || username.trim() === '') {
+            await this.logService.log('warn', `❌ El username proporcionado no es válido: ${username}`, 'TokenService');
+            return false;
+        }
+    
+        // Realizamos la búsqueda antes de intentar eliminar
+        const token = await this.findTokenByName(username);
+        if (!token) {
+            await this.logService.log('warn', `❌ No se encontró el token para el usuario: ${username}`, 'TokenService');
+            return false;
+        }
+    
+        // Procedemos con la eliminación
+        const result = await this.tokenModel.deleteOne({ _id: username.trim() });
+        if (result.deletedCount > 0) {
+            await this.logService.log('info', `✅ Token eliminado exitosamente para el usuario: ${username}`, 'TokenService');
+            return true;
+        }
+    
+        await this.logService.log('warn', `❌ No se pudo eliminar el token para el usuario: ${username}`, 'TokenService');
+        return false;
     }
-
+    
     async refreshAccessToken(username: string, refreshToken: string): Promise<{ access_token: string }> {
         const isValid = await this.validateRefreshToken(username, refreshToken);
         if (!isValid) {

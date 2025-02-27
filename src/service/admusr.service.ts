@@ -1,7 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { AdmUsr } from '../entities/admusr.entity';
 import { LogService } from './log.service';
+import { DataSource } from 'typeorm';
 
 /**
  * Servicio para la gestión de usuarios administrativos en la base de datos.

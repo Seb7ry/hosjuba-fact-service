@@ -22,7 +22,6 @@ export class LogController {
         return await this.logService.getLogsByDate(start, end, level);
     }
 
-    // Consultar logs por intervalo de horas
     @Get('by-interval')
     @UseGuards(JwtAuthGuard)
     async getLogsByInterval(

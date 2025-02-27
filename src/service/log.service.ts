@@ -1,8 +1,7 @@
 import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { Log, LogDocument } from "src/model/log.model";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Log, LogDocument } from "src/model/log.model";
-import { TokenService } from "./token.service";
 
 @Injectable()
 export class LogService {

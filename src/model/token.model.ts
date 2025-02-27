@@ -34,8 +34,4 @@ export class Token {
     @Prop({ required: true })
     expiresAtAccess: Date;
 }
-
-/** 
- * Crea el esquema de Mongoose basado en la clase Token
- * */ 
 export const TokenSchema = SchemaFactory.createForClass(Token);

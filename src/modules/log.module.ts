@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { MongooseModule } from '@nestjs/mongoose';
 import { LogController } from 'src/controllers/log.controller';
 import { Log, LogSchema } from 'src/model/log.model';
 import { LogService } from 'src/service/log.service';
+import { MongooseModule } from '@nestjs/mongoose';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
     imports: [

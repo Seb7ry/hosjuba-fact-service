@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { TokenService } from "./token.service";
-import { LogService } from "./log.service";
 import { AdmUsrService } from "./admusr.service";
+import { TokenService } from "./token.service";
+import { Injectable } from "@nestjs/common";
+import { LogService } from "./log.service";
+import { JwtService } from "@nestjs/jwt";
 
 @Injectable()
 export class AuthService {
@@ -32,7 +32,7 @@ export class AuthService {
     }
 
     async logout(username: string): Promise<string> {
-        const result = await this.tokenService.deleteRefreshToken(username);
+        const result = await this.tokenService.deleteToken(username);
         if (result) {
             await this.logService.log('info', `Refresh token eliminado correctamente para el usuario: ${username}`, 'AuthService');
             return `Sesión cerrada exitosamente para el usuario: ${username}`;

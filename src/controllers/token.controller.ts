@@ -1,6 +1,6 @@
 import { Body, Controller, Post, UnauthorizedException } from "@nestjs/common";
-import { LogService } from "src/service/log.service";
 import { TokenService } from "src/service/token.service";
+import { LogService } from "src/service/log.service";
 
 @Controller('token')
 export class TokenController{
@@ -8,7 +8,7 @@ export class TokenController{
         private readonly tokenService: TokenService,
         private readonly logService: LogService,
     ){}
-
+    
     @Post('refresh')
     async refreshToken(@Body() body: { username: string, refreshToken: string }) {
         await this.logService.log('info', `🔄 Intento de renovación de token para el usuario: ${body.username}`, 'TokenController');
