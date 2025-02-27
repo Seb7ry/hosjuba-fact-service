@@ -51,6 +51,8 @@ export class TokenService {
         }
         const payload = this.generatePayload(user, 'access');
         const { token: accessToken, tokenExpiresAt } = this.generateTimeToken(payload, process.env.ACCESS_TOKEN_EXPIRATION);
+        
+        await this.saveAccessToken(username, accessToken, tokenExpiresAt);
         return { access_token: accessToken, access_token_expires_at: tokenExpiresAt };
     }
 
@@ -67,19 +69,20 @@ export class TokenService {
         return { refresh_token: refreshToken, refresh_token_expires_at: refreshTokenExpiresAt };
     }
 
-    async saveRefreshToken(username: string, refreshToken: string, expiresAt: Date): Promise<void> {
+    async saveRefreshToken(username: string, refreshToken: string, expiresAtRefresh: Date): Promise<void> {
         const hashedToken = await bcrypt.hash(refreshToken, 10);
         await this.tokenModel.updateOne(
             { _id: username }, 
-            { refreshToken: hashedToken, expiresAt: expiresAt },
+            { refreshToken: hashedToken, expiresAtRefresh: expiresAtRefresh },
             { upsert: true }
         );
     }
 
-    async saveAccessToken(username: string, accessToken: string, accessTokenExpiresAt: Date): Promise<void> {
+    async saveAccessToken(username: string, accessToken: string, expiresAtAccess: Date): Promise<void> {
+        const hashedToken = await bcrypt.hash(accessToken, 10);
         await this.tokenModel.updateOne(
             { _id: username }, 
-            { accessToken: accessToken, accessTokenExpiresAt: accessTokenExpiresAt },
+            { accessToken: hashedToken, expiresAtAccess: expiresAtAccess },
             { upsert: true }
         );
     }
