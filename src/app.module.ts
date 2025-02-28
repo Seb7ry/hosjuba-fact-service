@@ -16,6 +16,7 @@ import { AppService } from './app.service';
 import { AdmUsr } from './entities/admusr.entity';
 
 import * as dotenv from 'dotenv';
+import { AdmissionsModule } from './modules/admission.module';
 dotenv.config();
 
 /**
@@ -31,9 +32,12 @@ dotenv.config();
     AuthModule,
     TokenModule,
     AdmUsrModule,
+    AdmissionsModule,
     MongooseModule.forRoot(`mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}` +
                           `@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=${process.env.MONGO_AUTH_SOURCE}`),
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     TypeOrmModule.forRoot({
       type: process.env.DB_TYPE as any,  
       host: process.env.DB_HOST,         

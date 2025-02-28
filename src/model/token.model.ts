@@ -35,3 +35,4 @@ export class Token {
     expiresAtAccess: Date;
 }
 export const TokenSchema = SchemaFactory.createForClass(Token);
+TokenSchema.index({expiresAtRefresh: 1}, {expireAfterSeconds: 0});

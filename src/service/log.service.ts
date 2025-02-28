@@ -2,21 +2,27 @@ import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { Log, LogDocument } from "src/model/log.model";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class LogService {
     private readonly logger = new Logger(LogService.name);
 
-    constructor(@InjectModel(Log.name) private logModel: Model<LogDocument>) {}
+    constructor(
+        @InjectModel(Log.name) private logModel: Model<LogDocument>,
+        private readonly configService: ConfigService) {}
 
     async logAndThrow(level: 'info' | 'warn' | 'error', message: string, context: string) {
         await this.log(level, message, context); 
         throw new UnauthorizedException(message);
     }
 
-    async log(level: 'info' | 'warn' | 'error', message: string, context: string) {
+    async log(level: 'info' | 'warn' | 'error', message: string, context: string, expiration?: string) {
         try {
-            await this.logModel.create({ level, message, context, timestamp: new Date() });
+            const expiration = this.configService.get<string>('LOG_EXPIRATION');
+            const expiresAtLogT = expiration ? this.calculateExpiration(expiration): undefined;
+
+            await this.logModel.create({ level, message, context, timestamp: new Date(), expiresAtLogT });
 
             if (level === 'error') {
                 this.logger.error(message, context);
@@ -63,4 +69,20 @@ export class LogService {
 
         return await this.logModel.find(query);
     }
+
+    private calculateExpiration(expiration: string): Date {
+        const now = Date.now();
+        const [value, unit] = expiration.split(/(\d+)/).filter(Boolean);
+        let timeToAdd: number;
+    
+        if (unit === 'm') {
+            timeToAdd = parseInt(value) * 60000;
+        } else if (unit === 'h') {
+            timeToAdd = parseInt(value) * 3600000;
+        } else {
+            throw new Error('Unidad de tiempo no soportada');
+        }
+    
+        return new Date(now + timeToAdd);
+    }      
 }
