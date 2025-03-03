@@ -1,5 +1,4 @@
-import { Controller, Get, NotFoundException, Query } from "@nestjs/common";
-import { NotFoundError } from "rxjs";
+import { Body, Controller, Get, NotFoundException, Post, Query } from "@nestjs/common";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
 
@@ -26,5 +25,19 @@ export class AdmissionController {
         if(!admission) throw new NotFoundException("Admisión no encontrada.");
 
         return admission;
+    }
+
+    @Post('save')
+    async saveAdmission(
+        @Query('documentPatient') documentPatient: string,
+        @Query('consecutiveAdmission') consecutiveAdmission: string,
+        @Body('signature') signature: string): Promise<Admission>{
+            
+        try {
+            return await this.admissionService.saveAdmission(documentPatient, consecutiveAdmission, signature);
+        } catch (error) {
+            console.log(error)
+            throw new NotFoundException('No se pudo guardar la admisión con la firma digital.');
+        }
     }
 }

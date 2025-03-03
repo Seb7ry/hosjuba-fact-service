@@ -15,6 +15,9 @@ export class Admission {
     typeAdmission: string;
 
     @Prop({required: true})
+    userAdmission: string;
+
+    @Prop({required: true})
     typeDocumentPatient: string;
 
     @Prop({required: true})
@@ -26,20 +29,23 @@ export class Admission {
     @Prop({required: true})
     phonePatient: string;
 
-    @Prop({required: true})
+    @Prop({required: false})
     typeDocumentCompanion: string;
 
-    @Prop({required: true})
+    @Prop({required: false})
     documentCompanion: string;
 
-    @Prop({required: true})
+    @Prop({required: false})
     nameCompanion: string;
 
-    @Prop({required: true})
+    @Prop({required: false})
     phoneCompanion: string;
 
-    @Prop({required: true})
+    @Prop({required: false})
     relationCompanion: string;
+
+    @Prop({required: true, type: String})
+    digitalSignature: string;
 }
 
 export const AdmissionSchema = SchemaFactory.createForClass(Admission);

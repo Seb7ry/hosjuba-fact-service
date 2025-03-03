@@ -9,14 +9,15 @@ import { TokenModule } from './modules/token.module';
 import { AuthModule } from './modules/auth.module';
 import { LogModule } from './modules/log.module';
 
-import { AdmUsrService } from './service/admusr.service';
-import { TokenService } from './service/token.service';
 import { AppService } from './app.service';
 
 import { AdmUsr } from './entities/admusr.entity';
 
 import * as dotenv from 'dotenv';
 import { AdmissionsModule } from './modules/admission.module';
+import { SignatureModule } from './modules/signature.module';
+import { SqlServerConnectionModule } from './modules/sqlServerConnection.module';
+import { SqlServerConnectionService } from './service/sqlServerConnection.service';
 dotenv.config();
 
 /**
@@ -32,7 +33,9 @@ dotenv.config();
     AuthModule,
     TokenModule,
     AdmUsrModule,
+    SignatureModule,
     AdmissionsModule,
+    SqlServerConnectionModule,
     MongooseModule.forRoot(`mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}` +
                           `@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=${process.env.MONGO_AUTH_SOURCE}`),
     ConfigModule.forRoot({
@@ -58,15 +61,17 @@ dotenv.config();
     AppController, 
   ],
   providers: [
-    AppService,
+    AppService
   ],
 })
 export class AppModule implements OnModuleInit {
-  constructor() {}
+  constructor(private readonly sqlServerConnectionService: SqlServerConnectionService) {}
 
   /**
    * Método que se ejecuta al iniciar el módulo.
    * Puede ser utilizado para realizar inicializaciones o configuraciones previas.
    */
-  async onModuleInit() { }
+  async onModuleInit() { 
+    await this.sqlServerConnectionService.onModuleInit();
+  }
 }
