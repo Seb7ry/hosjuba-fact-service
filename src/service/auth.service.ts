@@ -19,7 +19,7 @@ export class AuthService {
             await this.logService.logAndThrow('warn', `Usuario no encontrado: ${username}`, 'AuthService');
         }
 
-        if (password.trim() !== user.AUsrPsw.toString().trim()) {
+        if (password.trim() !== user.password.trim()) {
             await this.logService.logAndThrow('warn', `Contraseña incorrecta para usuario: ${username}`, 'AuthService');
         }
 

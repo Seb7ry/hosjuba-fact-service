@@ -116,11 +116,9 @@ export class AdmissionService {
         if (!admissionData) {
             throw new InternalServerErrorException('Admisión no encontrada');
         }
-    
-        // Asegurando que los campos obligatorios estén completos
+
         const signatureN = await this.signatureService.generateSignature(signature);
     
-        // Asegurando que los campos opcionales estén definidos correctamente (puedes cambiar los valores si es necesario)
         admissionData.typeDocumentCompanion = admissionData.typeDocumentCompanion || '';
         admissionData.documentCompanion = admissionData.documentCompanion || '';
         admissionData.nameCompanion = admissionData.nameCompanion || '';

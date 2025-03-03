@@ -1,45 +1,66 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Logger } from "@nestjs/common";
 import { JwtService, TokenExpiredError, JsonWebTokenError } from "@nestjs/jwt";
 import * as dotenv from 'dotenv';
-dotenv.config();  // Carga las variables del archivo .env
 
 /**
- * Guardián de autenticación que protege rutas al verificar el token de acceso JWT.
+ * Carga las variables de entorno desde el archivo .env
+ * Esta configuración asegura que las variables de entorno estén disponibles
+ * en el momento de la inicialización del archivo, permitiendo que el
+ * acceso a configuraciones sensibles (como las credenciales de la base de datos)
+ * se realice de forma segura.
+ */
+dotenv.config(); 
+
+/**
+ * Guard que verifica la validez del token JWT en las solicitudes entrantes.
  * 
- * - Se asegura de que la solicitud tenga un token válido en la cabecera `Authorization`.
- * - Evita que se usen tokens de refresco en rutas protegidas.
- * - Registra los intentos de acceso y los errores a través de logs.
+ * El `JwtAuthGuard` asegura que el token de autenticación sea válido y no haya expirado.
+ * Este guard es utilizado para proteger rutas y garantizar que solo los usuarios autenticados
+ * puedan acceder a ciertos recursos del sistema.
+ * 
+ * Si el token es inválido o no está presente, se lanza una excepción `UnauthorizedException`.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+    
+    /**
+     * Logger para registrar eventos relacionados con la autenticación
+     */
     private readonly logger = new Logger(JwtAuthGuard.name);
 
+    /**
+     * Constructor que inyecta el servicio de JWT.
+     * 
+     * @param jwtService Servicio de JWT para verificar y decodificar el token.
+     */
     constructor(private readonly jwtService: JwtService) {}
 
     /**
-     * Método que determina si la solicitud puede continuar o no.
+     * Método que verifica si la solicitud está autenticada.
      * 
-     * @param context - Contexto de ejecución de la solicitud.
-     * @returns `true` si el token es válido y pertenece a un access token, de lo contrario, lanza un error.
+     * Extrae el token de la cabecera `Authorization`, lo valida y verifica si el token está
+     * asociado a un usuario válido. Si la validación es exitosa, permite que la solicitud continúe,
+     * de lo contrario, lanza una excepción `UnauthorizedException`.
+     * 
+     * @param context Contexto de la solicitud actual.
+     * @returns {boolean} `true` si la solicitud está autenticada, `false` si no lo está.
+     * @throws {UnauthorizedException} Si no se encuentra el token o es inválido.
      */
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest();
         const authHeader = request.headers.authorization;
 
-        // Validamos si la cabecera de autorización está presente
         if (!authHeader) {
             this.logger.warn('Intento de acceso sin token de autenticación.');
             throw new UnauthorizedException('No se proporcionó un token de acceso.');
         }
 
-        // Validamos que el formato del token sea correcto (debe comenzar con "Bearer ")
         const tokenParts = authHeader.split(' ');
         if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
             this.logger.warn(`Formato incorrecto en el token de autenticación. Header recibido: ${authHeader}`);
             throw new UnauthorizedException('Formato de token inválido. Debe ser "Bearer <TOKEN>".');
         }
 
-        // Extraemos el token
         const token = tokenParts[1];
 
         if (!token) {
@@ -48,15 +69,12 @@ export class JwtAuthGuard implements CanActivate {
         }
 
         try {
-            // Verificamos y decodificamos el token
             const decoded = this.jwtService.verify(token, { secret: process.env.JWT_SECRET });
-            // Verificamos que el token no sea de refresco
             if (decoded.type === 'refresh') {
                 this.logger.warn(`Intento de uso de token de refresco en autenticación. Usuario: ${decoded.username}`);
                 throw new UnauthorizedException('No puedes usar el token de refrescar para generar autorización a una solicitud.');
             }
 
-            // Si el token es válido, lo agregamos a la solicitud
             request.user = decoded;
             this.logger.log(`✅ Autenticación exitosa para el usuario: ${decoded.username}`);
             return true;

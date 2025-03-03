@@ -11,8 +11,6 @@ import { LogModule } from './modules/log.module';
 
 import { AppService } from './app.service';
 
-import { AdmUsr } from './entities/admusr.entity';
-
 import * as dotenv from 'dotenv';
 import { AdmissionsModule } from './modules/admission.module';
 import { SignatureModule } from './modules/signature.module';
@@ -55,7 +53,6 @@ dotenv.config();
       },
       autoLoadEntities: true,  
     }),
-    TypeOrmModule.forFeature([AdmUsr]),
   ],
   controllers: [
     AppController, 

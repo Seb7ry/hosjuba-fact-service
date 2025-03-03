@@ -7,13 +7,13 @@ export class LogController {
     constructor(private readonly logService: LogService) {}
 
     @Get('all')
-    @UseGuards(JwtAuthGuard)
+    //@UseGuards(JwtAuthGuard)
     async getAllLogs() {
         return await this.logService.getAllLogs();
     }
 
     @Get('by-date')
-    @UseGuards(JwtAuthGuard)
+    //@UseGuards(JwtAuthGuard)
     async getLogsByDate(
         @Query('start') start: string,  
         @Query('end') end: string,      
@@ -23,7 +23,7 @@ export class LogController {
     }
 
     @Get('by-interval')
-    @UseGuards(JwtAuthGuard)
+    //@UseGuards(JwtAuthGuard)
     async getLogsByInterval(
         @Query('startTime') startTime: string,  
         @Query('endTime') endTime: string,      

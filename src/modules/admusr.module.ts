@@ -1,10 +1,11 @@
 import { AdmUsrController } from 'src/controllers/admusr.controller';
-import { AdmUsrService } from '../service/admusr.service';
-import { AdmUsr } from '../entities/admusr.entity';
+import { AdmUsr } from '../model/admusr.model';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LogModule } from './log.module';
 import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { AdmUsrService } from 'src/service/admusr.service';
 
 /**
  * Módulo de administración de usuarios (`AdmUsrModule`).
@@ -14,10 +15,9 @@ import { Module } from '@nestjs/common';
  * - Exporta `AdmUsrService` para que otros módulos puedan usarlo.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([AdmUsr]), // Registra la entidad `AdmUsr` en TypeORM
-            LogModule,
-            JwtModule
-            ],
+  imports: [
+    LogModule,
+    JwtModule        ],
   controllers: [AdmUsrController],
   providers: [AdmUsrService],
   exports: [AdmUsrService],
