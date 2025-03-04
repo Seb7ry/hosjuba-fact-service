@@ -1,7 +1,6 @@
 import { Controller, Get, Param, Request, UseGuards } from '@nestjs/common';
 import { AdmUsrService } from '../service/admusr.service';
-import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';  // Asegúrate de que el guard de JWT esté activado
-import { LogService } from '../service/log.service';
+import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 
 /**
  * Controlador para gestionar las operaciones de usuarios administrativos (`ADMUSR`).
@@ -10,8 +9,7 @@ import { LogService } from '../service/log.service';
 export class AdmUsrController {
     constructor(
         private readonly admUserService: AdmUsrService,
-        private readonly logService: LogService
-    ) {}
+    ) { }
 
     /**
      * Obtiene todos los usuarios registrados en la base de datos.
@@ -22,11 +20,9 @@ export class AdmUsrController {
      * @param req - Objeto de la solicitud, contiene información del usuario autenticado.
      * @returns Lista de usuarios disponibles en la base de datos.
      */
-    @Get()
-    @UseGuards(JwtAuthGuard)  // Descomentar esto para proteger la ruta
+    @Get('all')
+    @UseGuards(JwtAuthGuard)
     async getAllUsers(@Request() req): Promise<any[]> {
-        console.log(req.user)
-        await this.logService.log('info', `📢 Solicitud de lista de usuarios por: ${req.user.username}`, 'AdmUsrController');
         return this.admUserService.findAll();
     }
 
@@ -41,9 +37,8 @@ export class AdmUsrController {
      * @returns Datos del usuario si se encuentra, `null` en caso contrario.
      */
     @Get(':id')
-    @UseGuards(JwtAuthGuard)  // Descomentar esto para proteger la ruta
+    @UseGuards(JwtAuthGuard)  
     async getUserById(@Request() req, @Param('id') id: string): Promise<any | null> {
-        await this.logService.log('info', `🔍 Buscando usuario por ID: ${id}`, 'AdmUsrController');
         return this.admUserService.findById(id);
     }
 
@@ -58,9 +53,8 @@ export class AdmUsrController {
      * @returns Datos del usuario si se encuentra, `null` en caso contrario.
      */
     @Get(':user')
-    @UseGuards(JwtAuthGuard)  // Descomentar esto para proteger la ruta
+    @UseGuards(JwtAuthGuard)  
     async getUserByUsername(@Request() req, @Param('username') username: string): Promise<any | null> {
-        await this.logService.log('info', `🔍 Buscando usuario por nombre: ${username}`, 'AdmUsrController');
         return this.admUserService.findByUser(username);
     }
 }

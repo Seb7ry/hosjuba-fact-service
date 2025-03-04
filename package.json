@@ -29,6 +29,8 @@
     "@nestjs/platform-express": "^9.0.0",
     "@nestjs/schedule": "^5.0.1",
     "@nestjs/typeorm": "^9.0.0",
+    "@ngrx/effects": "^19.0.1",
+    "@ngrx/store": "^19.0.1",
     "ajv": "8.8.2",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",

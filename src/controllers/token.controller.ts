@@ -1,30 +1,51 @@
-import { Body, Controller, Post, UnauthorizedException } from "@nestjs/common";
+import { Controller, Get, Param, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { TokenService } from "src/service/token.service";
-import { LogService } from "src/service/log.service";
+import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
+import { Request } from 'express';
 
+/**
+ * Controlador para gestionar las operaciones de tokens asignados a los 
+ * usuarios.
+ */
 @Controller('token')
 export class TokenController{
     constructor(
         private readonly tokenService: TokenService,
-        private readonly logService: LogService,
-    ){}
+    ){ }
     
-    @Post('refresh')
-    async refreshToken(@Body() body: { username: string, refreshToken: string }) {
-        await this.logService.log('info', `🔄 Intento de renovación de token para el usuario: ${body.username}`, 'TokenController');
-
-        if (!body.username || !body.refreshToken) {
-            await this.logService.log('warn', `⚠️ Renovación fallida: Faltan parámetros en la solicitud.`, 'TokenController');
-            throw new UnauthorizedException('Username y Refresh Token requerido');
-        }
-
+    /**
+     * Obtiene todos los tokens almacenados en la base de datos.
+     * Ruta: `GET /token/all`
+     * @returns Lista de todos los tokens almacenados en la base de datos.
+     */
+    @Get('all')
+    @UseGuards(JwtAuthGuard)
+    async getAllTokens(@Req() req: Request) {
         try {
-            const newAccessToken = await this.tokenService.refreshAccessToken(body.username, body.refreshToken);
-            await this.logService.log('info', `✅ Token de acceso renovado correctamente para el usuario: ${body.username}`, 'TokenController');
-            return newAccessToken;
+            const tokens = await this.tokenService.findAllTokens();
+            return tokens;
         } catch (error) {
-            await this.logService.log('warn', `❌ Fallo en la renovación del token para el usuario: ${body.username} - Motivo: ${error.message}`, 'TokenController');
-            throw new UnauthorizedException('No se pudo renovar el token de acceso.');
+            throw new UnauthorizedException('No se pudo obtener la lista de tokens.');
+        }
+    }
+
+    /**
+     * Busca un token específico por el ID de usuario.
+     * Ruta: `GET /token/:id`
+     * @param id - El ID del usuario para el cual se busca el token.
+     * @returns El token encontrado para el usuario.
+     */
+    @Get(':id')
+    @UseGuards(JwtAuthGuard)
+    async getTokenByUserId(@Param('id') id: string) {
+        try {
+            const token = await this.tokenService.findTokenByName(id);
+            if (!token) {
+                throw new UnauthorizedException('Token no encontrado.');
+            }
+            return token;
+        } catch (error) {
+            throw new UnauthorizedException('No se pudo obtener el token.');
         }
     }
 }

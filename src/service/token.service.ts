@@ -1,12 +1,21 @@
 import { Token, TokenDocument } from "src/model/token.model"; 
 import { AdmUsrService } from "./admusr.service";
 import { InjectModel } from "@nestjs/mongoose";
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { LogService } from "./log.service";
 import { JwtService } from "@nestjs/jwt";
 import { Model } from "mongoose";
-import * as bcrypt from 'bcrypt';
 
+/**
+ * TokenService maneja la generación, validación, almacenamiento y eliminación de tokens de acceso
+ * y refresh tokens en la base de datos MongoDB.
+ * 
+ * Principales funcionalidades:
+ * - Generación de `access` y `refresh` tokens.
+ * - Validación de `refresh` tokens para generar nuevos `access` tokens.
+ * - Almacenamiento seguro de tokens en la base de datos utilizando encriptación.
+ * - Eliminación de tokens y manejo de sesiones de usuario.
+ */
 @Injectable()
 export class TokenService {
     constructor(
@@ -14,12 +23,42 @@ export class TokenService {
         private readonly jwtService: JwtService,
         private readonly logService: LogService,
         private readonly admUsrService: AdmUsrService
-    ) {}
+    ) { }
 
+    /**
+     * Genera el payload para el token con la información del usuario y el tipo de token (acceso o refresco).
+     * @param user - El usuario para el cual se generará el token.
+     * @param type - El tipo de token ('access' o 'refresh').
+     * @returns El payload generado para el token.
+     */
     private generatePayload(user: any, type: string) {
         return { sub: user.AUsrId, username: user.AUsrId, type }; 
     }
 
+    /**
+    * Busca todos los tokens almacenados en la base de datos para todos los usuarios.
+    * @returns Un array de tokens de todos los usuarios almacenados en la base de datos.
+    */
+    async findAllTokens(): Promise<Token[] | null> {
+        try {
+            const tokens = await this.tokenModel.find().exec();
+
+            if(tokens.length === 0){
+                await this.logService.log('warn', `No se encontraron tokens en la base de datos.`, 'TokenService');
+            }
+
+            return tokens;
+        } catch (error) {
+            await this.logService.log('error', `Error al obtener los tokens: ${error.message}`, 'TokenService');
+            throw new InternalServerErrorException('No se pudo obtener la lista de tokens.');
+        }
+    }
+
+    /**
+     * Busca un token en la base de datos MongoDB por su ID de usuario.
+     * @param _id - El ID del usuario para el que se busca el token.
+     * @returns El documento del token si se encuentra, o `null` si no se encuentra.
+     */
     async findTokenByName(_id: string): Promise<Token | null> {
         const token = await this.tokenModel.findOne({ _id: _id.trim() }).exec(); 
     
@@ -29,6 +68,12 @@ export class TokenService {
         return token;
     }    
 
+    /**
+     * Genera un token con fecha de expiración a partir del payload y la duración del token.
+     * @param payload - El payload que se firmará en el token.
+     * @param expiration - El tiempo de expiración del token (por ejemplo, '1h' o '30m').
+     * @returns El token generado y su fecha de expiración.
+     */
     private generateTimeToken(payload: any, expiration: string) {
         const now = Date.now();
         const [value, unit] = expiration.split(/(\d+)/).filter(Boolean);
@@ -48,6 +93,11 @@ export class TokenService {
         return { token, tokenExpiresAt };
     }
 
+    /**
+     * Genera un access token para el usuario.
+     * @param username - El nombre de usuario para el que se generará el token.
+     * @returns El access token y su fecha de expiración.
+     */
     async generateAccessToken(username: string): Promise<{ access_token: string; access_token_expires_at: Date }> {
         const user = await this.admUsrService.findByUser(username);
         if (!user) {
@@ -60,6 +110,11 @@ export class TokenService {
         return { access_token: accessToken, access_token_expires_at: tokenExpiresAt };
     }
 
+    /**
+     * Genera un refresh token para el usuario.
+     * @param username - El nombre de usuario para el que se generará el token.
+     * @returns El refresh token y su fecha de expiración.
+     */
     async generateRefreshToken(username: string): Promise<{ refresh_token: string; refresh_token_expires_at: Date }> {
         const user = await this.admUsrService.findByUser(username);
         if (!user) {
@@ -73,24 +128,40 @@ export class TokenService {
         return { refresh_token: refreshToken, refresh_token_expires_at: refreshTokenExpiresAt };
     }
 
+    /**
+     * Guarda el refresh token de un usuario en la base de datos.
+     * @param username - El nombre de usuario para el que se guarda el refresh token.
+     * @param refreshToken - El refresh token generado.
+     * @param expiresAtRefresh - La fecha de expiración del refresh token.
+     */
     async saveRefreshToken(username: string, refreshToken: string, expiresAtRefresh: Date): Promise<void> {
-        const hashedToken = await bcrypt.hash(refreshToken, 10);
         await this.tokenModel.updateOne(
             { _id: username.trim() }, 
-            { refreshToken: hashedToken, expiresAtRefresh: expiresAtRefresh },
+            { refreshToken: refreshToken, expiresAtRefresh: expiresAtRefresh },
             { upsert: true }
         );
     }
 
+    /**
+     * Guarda el access token de un usuario en la base de datos.
+     * @param username - El nombre de usuario para el que se guarda el access token.
+     * @param accessToken - El access token generado.
+     * @param expiresAtAccess - La fecha de expiración del access token.
+     */
     async saveAccessToken(username: string, accessToken: string, expiresAtAccess: Date): Promise<void> {
-        const hashedToken = await bcrypt.hash(accessToken, 10);
         await this.tokenModel.updateOne(
             { _id: username.trim() }, 
-            { accessToken: hashedToken, expiresAtAccess: expiresAtAccess },
+            { accessToken: accessToken, expiresAtAccess: expiresAtAccess },
             { upsert: true }
         );
     }
 
+    /**
+     * Valida el refresh token de un usuario.
+     * @param username - El nombre de usuario del que se valida el refresh token.
+     * @param refreshToken - El refresh token a validar.
+     * @returns `true` si el refresh token es válido, `false` si no lo es.
+     */
     async validateRefreshToken(username: string, refreshToken: string): Promise<boolean> {
         const tokenRecord = await this.tokenModel.findById(username).exec();
         if (!tokenRecord || !tokenRecord.refreshToken) {
@@ -98,7 +169,7 @@ export class TokenService {
             return false;
         }
 
-        const isValid = await bcrypt.compare(refreshToken, tokenRecord.refreshToken);
+        const isValid = refreshToken == tokenRecord.refreshToken;
         if (!isValid) {
             await this.logService.log('warn', `❌ Refresh token inválido para usuario: ${username}`, 'TokenService');
             return false;
@@ -114,21 +185,52 @@ export class TokenService {
         return true;
     }
 
+    /**
+     * Valida el access token de un usuario.
+     * @param username - El nombre de usuario del que se valida el access token.
+     * @param accessToken - El access token a validar.
+     * @returns `true` si el access token es válido, `false` si no lo es.
+     */
+    async validateAccessToken(username: string, accessToken: string): Promise<boolean> {
+        const tokenRecord = await this.tokenModel.findById(username).exec();
+        if (!tokenRecord || !tokenRecord.accessToken) {
+            await this.logService.log('warn', `No se encontró access token para usuario: ${username}`, 'TokenService');
+            return false;
+        }
+
+        const isValid = accessToken === tokenRecord.accessToken;
+        if (!isValid) {
+            await this.logService.log('warn', `❌ Access token inválido para usuario: ${username}`, 'TokenService');
+            return false;
+        }
+        
+        const now = new Date();
+        if (tokenRecord.expiresAtAccess <= now) {
+            await this.logService.log('warn', `❌ Access token expirado para usuario: ${username}`, 'TokenService');
+            return false;
+        }
+
+        await this.logService.log('info', `✅ Access token válido para usuario: ${username}`, 'TokenService');
+        return true;
+    }
+
+    /**
+     * Elimina el token de un usuario.
+     * @param username - El nombre de usuario cuyo token se eliminará.
+     * @returns `true` si se eliminó exitosamente, `false` si no se pudo eliminar.
+     */
     async deleteToken(username: string): Promise<boolean> {
-        // Verificamos que el username sea un string válido y sin espacios
         if (typeof username !== 'string' || username.trim() === '') {
             await this.logService.log('warn', `❌ El username proporcionado no es válido: ${username}`, 'TokenService');
             return false;
         }
     
-        // Realizamos la búsqueda antes de intentar eliminar
         const token = await this.findTokenByName(username);
         if (!token) {
             await this.logService.log('warn', `❌ No se encontró el token para el usuario: ${username}`, 'TokenService');
             return false;
         }
-    
-        // Procedemos con la eliminación
+
         const result = await this.tokenModel.deleteOne({ _id: username.trim() });
         if (result.deletedCount > 0) {
             await this.logService.log('info', `✅ Token eliminado exitosamente para el usuario: ${username}`, 'TokenService');
@@ -139,6 +241,12 @@ export class TokenService {
         return false;
     }
     
+    /**
+     * Refresca el access token de un usuario utilizando su refresh token.
+     * @param username - El nombre de usuario para el que se generará un nuevo access token.
+     * @param refreshToken - El refresh token utilizado para generar el nuevo access token.
+     * @returns El nuevo access token.
+     */
     async refreshAccessToken(username: string, refreshToken: string): Promise<{ access_token: string }> {
         const isValid = await this.validateRefreshToken(username, refreshToken);
         if (!isValid) {
