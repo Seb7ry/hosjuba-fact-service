@@ -47,7 +47,8 @@ export class AdmissionService {
             JOIN TMPFAC TF
                 ON I.IngCsc = TF.TmCtvIng
                 AND I.MPCedu = TF.TFCedu
-                AND I.MPTDoc = TF.TFTDoc`;
+                AND I.MPTDoc = TF.TFTDoc
+            ORDER BY I.IngCsc DESC`;
 
         try {
             const admissions = await this.datasource.query(query);
@@ -59,7 +60,7 @@ export class AdmissionService {
     }
 
     async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission> {
-        const query = `
+        let query = `
             SELECT 
                 I.IngCsc AS consecutiveAdmission,
                 I.IngFecAdm AS dateAdmission,
@@ -86,28 +87,36 @@ export class AdmissionService {
                 ON I.IngCsc = TF.TmCtvIng
                 AND I.MPCedu = TF.TFCedu
                 AND I.MPTDoc = TF.TFTDoc
-            WHERE I.MPCedu = @documentPatient
-            AND I.IngCsc = @consecutiveAdmission`;
+            WHERE I.MPCedu = @documentPatient`;
 
-            try {
+        if(consecutiveAdmission){
+            query += ` AND I.IngCsc = @consecutiveAdmission`
+        }
 
-                const connectionPool = this.sqlService.getConnectionPool();
-                const request = new Request(connectionPool);
+        query += ` ORDER BY I.IngCsc DESC`;
 
-                request.input('documentPatient', documentPatient);
+        try {
+
+            const connectionPool = this.sqlService.getConnectionPool();
+            const request = new Request(connectionPool);
+
+            request.input('documentPatient', documentPatient);
+            
+            if (consecutiveAdmission) {
                 request.input('consecutiveAdmission', consecutiveAdmission);
-
-                const result = await request.query(query);
-
-                if (result.recordset.length === 0) {
-                    return null;
-                }
-
-                return result.recordset[0];  
-            } catch (error) {
-                console.error('Error executing the query:', error);
-                throw new InternalServerErrorException("No se pudo obtener la admisión.");
             }
+
+            const result = await request.query(query);
+
+            if (result.recordset.length === 0) {
+                return null;
+            }
+
+        return result.recordset[0];  
+        } catch (error) {
+            console.error('Error executing the query:', error);
+            throw new InternalServerErrorException("No se pudo obtener la admisión.");
+        }
     }
 
     async saveAdmission(documentPatient: string, consecutiveAdmission: string, signature: string): Promise<Admission> {

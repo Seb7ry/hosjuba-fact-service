@@ -59,31 +59,15 @@ export class LogService {
     }
 
     /**
-     * Obtiene los logs almacenados en la base de datos filtrados por rango de fechas y niveles.
+     * Obtiene los logs almacenados en la base de datos filtrados por niveles.
      * 
-     * @param start - Fecha de inicio en formato `YYYY-MM-DD` o hora en formato `HH:mm`.
-     * @param end - Fecha de fin en formato `YYYY-MM-DD` o hora en formato `HH:mm`.
      * @param levels - Array de niveles de log a filtrar (opcional). Ejemplo: ['info', 'warn'].
      * @returns Una lista de logs filtrados según los criterios proporcionados.
      */
-    async getLogs(start: string, end: string, level: string[] = ['info', 'warn', 'error']) {
+    async getLogs( level: string[] = ['info', 'warn', 'error']) {
         const query: any = {
             level: { $in: level }
         };
-    
-        if (start && end) {
-            const startDate = new Date(start);
-            const endDate = new Date(end);
-    
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                throw new UnauthorizedException('Fechas inválidas proporcionadas.');
-            }
-    
-            query.timestamp = {
-                $gte: startDate,
-                $lte: endDate
-            };
-        }
     
         try {
             return await this.logModel.find(query);
@@ -91,8 +75,7 @@ export class LogService {
             this.logger.error(`❌ Error al obtener los logs: ${error.message}`);
             throw new UnauthorizedException('No se pudieron obtener los logs.');
         }
-    }
-    
+    }    
 
     /**
      * Calcula la fecha de expiración a partir de una duración dada (por ejemplo, '5m', '1h').
