@@ -48,7 +48,7 @@ export class AdmissionService {
                 ON I.IngCsc = TF.TmCtvIng
                 AND I.MPCedu = TF.TFCedu
                 AND I.MPTDoc = TF.TFTDoc
-            ORDER BY I.IngCsc DESC`;
+            ORDER BY I.IngFecAdm DESC`;
 
         try {
             const admissions = await this.datasource.query(query);
@@ -59,7 +59,10 @@ export class AdmissionService {
         }
     }
 
-    async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission> {
+    async getAdmissionFiltrer(documentPatient: string, consecutiveAdmission: string, 
+        startDateAdmission: string, endDateAdmission: string,
+        userAdmission: string, typeAdmission: string): Promise<Admission[]> {
+        
         let query = `
             SELECT 
                 I.IngCsc AS consecutiveAdmission,
@@ -87,35 +90,135 @@ export class AdmissionService {
                 ON I.IngCsc = TF.TmCtvIng
                 AND I.MPCedu = TF.TFCedu
                 AND I.MPTDoc = TF.TFTDoc
-            WHERE I.MPCedu = @documentPatient`;
+            WHERE I.MPCedu IS NOT NULL`;
 
-        if(consecutiveAdmission){
-            query += ` AND I.IngCsc = @consecutiveAdmission`
+        if(documentPatient){
+            query += ` AND I.MPCedu = @documentPatient`;
+
         }
+    
+        if (consecutiveAdmission) {
+            query += ` AND I.IngCsc = @consecutiveAdmission`;
+        }
+    
+        if (startDateAdmission && endDateAdmission) {
+            const start = new Date(startDateAdmission);
+            console.log(start,' fecha digitada ',startDateAdmission)
+            start.setHours(0, 0, 0, 0);
+            console.log(start)
+    
+            const end = new Date(endDateAdmission);
+            console.log(start,' fecha digitada ',endDateAdmission)
+            end.setHours(23, 59, 59, 999);
+            console.log(end)
 
-        query += ` ORDER BY I.IngCsc DESC`;
+            query += ` AND I.IngFecAdm BETWEEN @start AND @end`;
+        }   
+        console.log('----------')
+    
+        if (startDateAdmission && !endDateAdmission) {
+            const start = new Date(startDateAdmission);
+            console.log(start,' fecha digitada ',startDateAdmission)
+            start.setHours(0, 0, 0, 0);
+            console.log(start)
+            
+            const end = new Date(start);
+            console.log(start,' fecha calculada ',startDateAdmission)
+            end.setHours(23, 59, 59, 999);
+            console.log(end)
 
+            query += ` AND I.IngFecAdm BETWEEN @start AND @end`;
+        }
+    
+        if (userAdmission) {
+            query += ` AND dbo.desencriptar(I.IngUsrReg) = @userAdmission`;
+        }
+    
+        if (typeAdmission) {
+            query += ` AND I.MPCodP = @typeAdmission`;
+        }
+    
+        query += ` ORDER BY I.IngFecAdm DESC`;
+    
         try {
-
             const connectionPool = this.sqlService.getConnectionPool();
             const request = new Request(connectionPool);
-
+    
             request.input('documentPatient', documentPatient);
-            
+    
             if (consecutiveAdmission) {
                 request.input('consecutiveAdmission', consecutiveAdmission);
             }
-
-            const result = await request.query(query);
-
-            if (result.recordset.length === 0) {
-                return null;
+    
+            if (startDateAdmission || endDateAdmission) {
+                const start = new Date(startDateAdmission);
+                start.setHours(0, 0, 0, 0);  
+                const end = endDateAdmission ? new Date(endDateAdmission) : new Date(start);
+                end.setHours(23, 59, 59, 999); 
+                console.log(start, '---',end) 
+                request.input('start', start);
+                request.input('end', end);
             }
-
-        return result.recordset[0];  
+    
+            if (userAdmission) {
+                request.input('userAdmission', userAdmission);
+            }
+    
+            if (typeAdmission) {
+                request.input('typeAdmission', typeAdmission);
+            }
+    
+            const result = await request.query(query);
+    
+            if (result.recordset.length === 0) {
+                return [];
+            }
+    
+            return result.recordset;  
         } catch (error) {
             console.error('Error executing the query:', error);
             throw new InternalServerErrorException("No se pudo obtener la admisión.");
+        }
+    }
+    
+
+    async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission>{
+        const query = `
+        SELECT 
+            I.IngCsc AS consecutiveAdmission,
+            I.IngFecAdm AS dateAdmission,
+            I.MPCodP AS typeAdmission,
+            LTRIM(RTRIM(dbo.desencriptar(I.IngUsrReg))) AS userAdmission,
+            I.MPTDoc AS typeDocumentPatient,
+            LTRIM(RTRIM(I.MPCedu)) AS documentPatient,
+            CONCAT(
+                LTRIM(RTRIM(CB.MPNom1)), ' ', 
+                LTRIM(RTRIM(CB.MPNom2)), ' ', 
+                LTRIM(RTRIM(CB.MPApe1)), ' ', 
+                LTRIM(RTRIM(CB.MPApe2))
+            ) AS namePatient,
+            LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
+            LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
+            LTRIM(RTRIM(TF.TFNoAc)) AS nameCompanion,
+            LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
+            LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
+        FROM INGRESOS I
+        LEFT JOIN CAPBAS CB
+            ON I.MPCedu = CB.MPCedu
+            AND I.MPTDoc = CB.MPTDoc
+        LEFT JOIN TMPFAC TF
+            ON I.IngCsc = TF.TmCtvIng
+            AND I.MPCedu = TF.TFCedu
+            AND I.MPTDoc = TF.TFTDoc
+        WHERE I.MPCedu = @documentPatient
+        AND I.IngCsc = @consecutiveAdmission`;
+
+        try {
+            const admission = await this.datasource.query(query);
+            return admission;
+        } catch (error) {
+            await this.logService.logAndThrow('warn','No se pudo obtener admisión específica buscada.', 'AdmissionService');
+            throw new InternalServerErrorException("No se pudo obtener la admision.", error);
         }
     }
 

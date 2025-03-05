@@ -3,7 +3,7 @@ import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
 
-@Controller('admissions')
+@Controller('admission')
 export class AdmissionController {
     constructor(private readonly admissionService: AdmissionService) { }
 
@@ -17,6 +17,24 @@ export class AdmissionController {
         }
     }
 
+    @Get('id')
+    @UseGuards(JwtAuthGuard)
+    async getAdmissionByKeys(
+        @Query('documentPatient') documentPatient: string,
+        @Query('consecutiveAdmission') consecutiveAdmission: string,
+    ): Promise<Admission> {
+        if (!documentPatient) {
+            throw new UnauthorizedException("El número de documento es obligatorio.");
+        }
+        const admission = await this.admissionService.getAdmissionByKeys(documentPatient, consecutiveAdmission);
+
+        if (!admission) {
+            throw new UnauthorizedException("Admisión no encontrada.");
+        }
+
+        return admission;
+    }
+
     /**
      * Obtiene la admisión filtrando por documento del paciente o consecutivo de la admisión.
      * 
@@ -28,22 +46,26 @@ export class AdmissionController {
      * @returns La admisión encontrada o una excepción si no se encuentra.
      */
     
-    @Get()
+    @Get('filtrer')
     @UseGuards(JwtAuthGuard)
-    async getAdmissionByKeys(
+    async getAdmissionFiltrer(
         @Query('documentPatient') documentPatient: string,
         @Query('consecutiveAdmission') consecutiveAdmission: string,
-    ): Promise<Admission> {
-        // Validar si se pasa el documento del paciente, es obligatorio
-        if (!documentPatient) {
-            throw new UnauthorizedException("El número de documento es obligatorio.");
-        }
+        @Query('startDateAdmission') startDateAdmission: string,
+        @Query('endDateAdmission') endDateAdmission:string,
+        @Query('userAdmission') userAdmission: string,
+        @Query('typeAdmission') typeAdmission: string
+    ): Promise<Admission[]> {
+        const admission = await this.admissionService.getAdmissionFiltrer(
+            documentPatient, 
+            consecutiveAdmission,
+            startDateAdmission,
+            endDateAdmission,
+            userAdmission,
+            typeAdmission);
 
-        // Llamada al servicio con el documento y el consecutivo si existe
-        const admission = await this.admissionService.getAdmissionByKeys(documentPatient, consecutiveAdmission);
-
-        if (!admission) {
-            throw new UnauthorizedException("Admisión no encontrada.");
+        if (admission.length === 0) {
+            throw new UnauthorizedException("No se encontraron admisiones.");
         }
 
         return admission;
