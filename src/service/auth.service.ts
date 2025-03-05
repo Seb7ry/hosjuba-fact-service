@@ -7,12 +7,21 @@ import { JwtService } from "@nestjs/jwt";
 /**
  * Servicio de autenticación que maneja el inicio y cierre de sesión de los usuarios.
  * 
- * - Verifica las credenciales del usuario.
- * - Genera tokens de acceso y de refresco.
- * - Realiza el registro de los eventos relevantes en los logs.
+ * Este servicio proporciona funcionalidades para manejar el proceso de autenticación de los usuarios, 
+ * como la verificación de credenciales y la generación de tokens de acceso y refresco. Además, mantiene 
+ * un registro de los eventos relacionados con la autenticación en los logs.
  */
 @Injectable()
 export class AuthService {
+    
+    /**
+     * Constructor del servicio `AuthService`.
+     * 
+     * @param tokenService - Servicio encargado de la generación y validación de tokens.
+     * @param jwtService - Servicio que maneja la creación de los JWTs.
+     * @param logService - Servicio encargado de registrar eventos en los logs.
+     * @param admUsrService - Servicio que gestiona la información de los usuarios administrativos.
+     */
     constructor(
         private readonly tokenService: TokenService,
         private readonly jwtService: JwtService,
@@ -45,9 +54,6 @@ export class AuthService {
 
         const { access_token, access_token_expires_at } = await this.tokenService.generateAccessToken(username);
         const { refresh_token, refresh_token_expires_at } = await this.tokenService.generateRefreshToken(username);
-
-        await this.logService.log('info', `Tokens generados y almacenados para el usuario: ${username}`, 'AuthService');
-        
         return { access_token, refresh_token };
     }
 
@@ -65,7 +71,6 @@ export class AuthService {
     async logout(username: string): Promise<string> {
         const result = await this.tokenService.deleteToken(username);
         if (result) {
-            await this.logService.log('info', `Refresh token eliminado correctamente para el usuario: ${username}`, 'AuthService');
             return `Sesión cerrada exitosamente para el usuario: ${username}`;
         } else {
             await this.logService.logAndThrow('warn', `No se encontró un refresh token para el usuario: ${username}`, 'AuthService');

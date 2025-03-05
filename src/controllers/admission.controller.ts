@@ -3,10 +3,29 @@ import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
 
+/**
+ * Controlador de las admisiones.
+ * Este controlador expone los endpoints para obtener, filtrar, y guardar admisiones.
+ * Utiliza el guardia de autenticación JWT para proteger los endpoints.
+ */
 @Controller('admission')
 export class AdmissionController {
+    
+    /**
+     * Constructor del controlador de admisiones.
+     * @param admissionService - Servicio que gestiona las operaciones relacionadas con las admisiones.
+     */
     constructor(private readonly admissionService: AdmissionService) { }
 
+    /**
+     * Obtiene todas las admisiones.
+     * 
+     * Este endpoint obtiene todas las admisiones almacenadas en el sistema. 
+     * Utiliza el guardia `JwtAuthGuard` para asegurar que el usuario esté autenticado.
+     * 
+     * @returns Una lista de objetos `Admission`.
+     * @throws `NotFoundException` si no se pueden obtener las admisiones.
+     */
     @Get()
     @UseGuards(JwtAuthGuard)
     async getAllAdmissions(): Promise<Admission[]>{
@@ -17,6 +36,17 @@ export class AdmissionController {
         }
     }
 
+    /**
+     * Obtiene una admisión específica utilizando las claves `documentPatient` y `consecutiveAdmission`.
+     * 
+     * Si el número de documento no es proporcionado, lanza una excepción de tipo `UnauthorizedException`.
+     * Si no se encuentra la admisión, lanza una excepción de tipo `UnauthorizedException`.
+     * 
+     * @param documentPatient - El número de documento del paciente.
+     * @param consecutiveAdmission - El consecutivo de la admisión.
+     * @returns La admisión correspondiente a los parámetros dados.
+     * @throws `UnauthorizedException` si el número de documento no está presente o si la admisión no se encuentra.
+     */
     @Get('id')
     @UseGuards(JwtAuthGuard)
     async getAdmissionByKeys(
@@ -36,16 +66,20 @@ export class AdmissionController {
     }
 
     /**
-     * Obtiene la admisión filtrando por documento del paciente o consecutivo de la admisión.
+     * Obtiene las admisiones filtradas según los parámetros proporcionados.
      * 
-     * Si se proporciona el documento del paciente, busca todas las admisiones asociadas a ese documento.
-     * Si se proporciona el consecutivo de la admisión, busca la admisión específica con ese consecutivo.
+     * Este endpoint permite filtrar las admisiones por diversos criterios como el documento del paciente, 
+     * el consecutivo de la admisión, fechas de inicio y fin, usuario que registró la admisión y el tipo de admisión.
      * 
      * @param documentPatient - El número de documento del paciente.
      * @param consecutiveAdmission - El consecutivo de la admisión.
-     * @returns La admisión encontrada o una excepción si no se encuentra.
+     * @param startDateAdmission - La fecha de inicio de la admisión.
+     * @param endDateAdmission - La fecha final de la admisión.
+     * @param userAdmission - El usuario que registró la admisión.
+     * @param typeAdmission - El tipo de admisión.
+     * @returns Una lista de objetos `Admission` que cumplen con los criterios de filtrado.
+     * @throws `UnauthorizedException` si no se encuentra la admisión o si faltan parámetros obligatorios.
      */
-    
     @Get('filtrer')
     @UseGuards(JwtAuthGuard)
     async getAdmissionFiltrer(
@@ -56,6 +90,9 @@ export class AdmissionController {
         @Query('userAdmission') userAdmission: string,
         @Query('typeAdmission') typeAdmission: string
     ): Promise<Admission[]> {
+        if (!documentPatient) {
+            throw new UnauthorizedException("El número de documento es obligatorio.");
+        }
         const admission = await this.admissionService.getAdmissionFiltrer(
             documentPatient, 
             consecutiveAdmission,
@@ -71,6 +108,18 @@ export class AdmissionController {
         return admission;
     }
     
+    /**
+     * Guarda una nueva admisión con la firma digital proporcionada.
+     * 
+     * Este endpoint guarda una nueva admisión en la base de datos utilizando los parámetros proporcionados.
+     * La firma digital debe ser proporcionada en el cuerpo de la solicitud.
+     * 
+     * @param documentPatient - El número de documento del paciente.
+     * @param consecutiveAdmission - El consecutivo de la admisión.
+     * @param signature - La firma digital del paciente.
+     * @returns La admisión guardada con la firma digital.
+     * @throws `NotFoundException` si no se puede guardar la admisión.
+     */
     @Post('save')
     @UseGuards(JwtAuthGuard)
     async saveAdmission(

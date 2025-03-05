@@ -10,9 +10,22 @@ import * as dotenv from 'dotenv';
 import { SqlServerConnectionService } from "./sqlServerConnection.service";
 dotenv.config(); 
 
+/**
+ * Servicio para gestionar las admisiones en el sistema.
+ * Este servicio interactúa con varias bases de datos (MongoDB y SQL Server), 
+ * y permite realizar operaciones de obtención, filtrado, búsqueda y creación de admisiones.
+ */
 @Injectable()
 export class AdmissionService {
 
+    /**
+     * Constructor de la clase AdmissionService.
+     * @param admissionModel - Modelo de Mongoose para las admisiones.
+     * @param signatureService - Servicio encargado de generar las firmas digitales.
+     * @param datasource - Fuente de datos (TypeORM) para interactuar con la base de datos SQL.
+     * @param logService - Servicio para registrar los logs.
+     * @param sqlService - Servicio para gestionar la conexión con SQL Server.
+     */
     constructor(
         @InjectModel(Admission.name) private admissionModel: Model<AdmissionDocument>,
         private readonly signatureService: SignatureService,
@@ -21,6 +34,11 @@ export class AdmissionService {
         private readonly sqlService: SqlServerConnectionService
     ) { }
 
+    /**
+     * Obtiene todas las admisiones de la base de datos SQL.
+     * 
+     * @returns Una lista de objetos de tipo `Admission`.
+     */
     async getAllAdmissions(): Promise<Admission[]> {
         const query = `
             SELECT 
@@ -54,14 +72,36 @@ export class AdmissionService {
             const admissions = await this.datasource.query(query);
             return admissions;
         } catch (error) {
-            await this.logService.logAndThrow('warn','No se pudo obtener la lista de admisiones.', 'AdmissionService');
+            await this.logService.logAndThrow('warn', '⚠️ No se pudo obtener la lista de admisiones.', 'AdmissionService');
             throw new InternalServerErrorException("No se pudo obtener la lista de admisiones.", error);
         }
     }
 
+    /**
+     * Filtra las admisiones según los parámetros proporcionados.
+     * 
+     * @param documentPatient - Documento del paciente.
+     * @param consecutiveAdmission - Consecutivo de la admisión.
+     * @param startDateAdmission - Fecha de inicio de la admisión.
+     * @param endDateAdmission - Fecha final de la admisión.
+     * @param userAdmission - Usuario que registró la admisión.
+     * @param typeAdmission - Tipo de admisión.
+     * @returns Una lista de objetos de tipo `Admission` filtrados.
+     */
     async getAdmissionFiltrer(documentPatient: string, consecutiveAdmission: string, 
         startDateAdmission: string, endDateAdmission: string,
         userAdmission: string, typeAdmission: string): Promise<Admission[]> {
+
+            if (startDateAdmission && endDateAdmission) {
+                const start = new Date(startDateAdmission);
+                const end = new Date(endDateAdmission);
+    
+                if (start >= end) {
+        
+                await this.logService.logAndThrow('warn', '⚠️ La fecha de inicio debe ser menor a la fecha final.', 'AdmissionService');
+                throw new InternalServerErrorException("La fecha de inicio debe ser menor a la fecha final.");
+            }
+        }
         
         let query = `
             SELECT 
@@ -83,105 +123,103 @@ export class AdmissionService {
                 LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
                 LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
             FROM INGRESOS I
-            LEFT JOIN CAPBAS CB
+                LEFT JOIN CAPBAS CB
                 ON I.MPCedu = CB.MPCedu
                 AND I.MPTDoc = CB.MPTDoc
-            LEFT JOIN TMPFAC TF
+                LEFT JOIN TMPFAC TF
                 ON I.IngCsc = TF.TmCtvIng
                 AND I.MPCedu = TF.TFCedu
                 AND I.MPTDoc = TF.TFTDoc
-            WHERE I.MPCedu IS NOT NULL`;
+            WHERE I.MPCedu = @documentPatient`; 
 
-        if(documentPatient){
-            query += ` AND I.MPCedu = @documentPatient`;
-
-        }
-    
         if (consecutiveAdmission) {
             query += ` AND I.IngCsc = @consecutiveAdmission`;
         }
-    
+
         if (startDateAdmission && endDateAdmission) {
             const start = new Date(startDateAdmission);
-            console.log(start,' fecha digitada ',startDateAdmission)
-            start.setHours(0, 0, 0, 0);
-            console.log(start)
-    
-            const end = new Date(endDateAdmission);
-            console.log(start,' fecha digitada ',endDateAdmission)
-            end.setHours(23, 59, 59, 999);
-            console.log(end)
+            start.setUTCHours(0, 0, 0, 0);
 
-            query += ` AND I.IngFecAdm BETWEEN @start AND @end`;
-        }   
-        console.log('----------')
-    
-        if (startDateAdmission && !endDateAdmission) {
-            const start = new Date(startDateAdmission);
-            console.log(start,' fecha digitada ',startDateAdmission)
-            start.setHours(0, 0, 0, 0);
-            console.log(start)
-            
-            const end = new Date(start);
-            console.log(start,' fecha calculada ',startDateAdmission)
-            end.setHours(23, 59, 59, 999);
-            console.log(end)
+            const end = new Date(endDateAdmission);
+            end.setUTCHours(23, 59, 59, 999);
 
             query += ` AND I.IngFecAdm BETWEEN @start AND @end`;
         }
-    
+
+        if (startDateAdmission && !endDateAdmission) {
+            const start = new Date(startDateAdmission);
+            start.setUTCHours(0, 0, 0, 0); 
+
+            const end = new Date(startDateAdmission);
+            end.setUTCHours(23, 59, 59, 999);
+
+            query += ` AND I.IngFecAdm BETWEEN @start AND @end`;
+        }
+
         if (userAdmission) {
             query += ` AND dbo.desencriptar(I.IngUsrReg) = @userAdmission`;
         }
-    
+
         if (typeAdmission) {
             query += ` AND I.MPCodP = @typeAdmission`;
         }
-    
+
         query += ` ORDER BY I.IngFecAdm DESC`;
-    
+
         try {
             const connectionPool = this.sqlService.getConnectionPool();
+            connectionPool.config.requestTimeout = 60000;
+
             const request = new Request(connectionPool);
-    
-            request.input('documentPatient', documentPatient);
-    
+
+            if (documentPatient) {
+                request.input('documentPatient', documentPatient);
+            }
+
             if (consecutiveAdmission) {
                 request.input('consecutiveAdmission', consecutiveAdmission);
             }
-    
+
             if (startDateAdmission || endDateAdmission) {
                 const start = new Date(startDateAdmission);
-                start.setHours(0, 0, 0, 0);  
+                start.setUTCHours(0, 0, 0, 0);
+
                 const end = endDateAdmission ? new Date(endDateAdmission) : new Date(start);
-                end.setHours(23, 59, 59, 999); 
-                console.log(start, '---',end) 
+                end.setUTCHours(23, 59, 59, 999);
+
                 request.input('start', start);
                 request.input('end', end);
             }
-    
+
             if (userAdmission) {
                 request.input('userAdmission', userAdmission);
             }
-    
+
             if (typeAdmission) {
                 request.input('typeAdmission', typeAdmission);
             }
-    
+
             const result = await request.query(query);
-    
+
             if (result.recordset.length === 0) {
                 return [];
             }
-    
-            return result.recordset;  
+
+            return result.recordset;
+
         } catch (error) {
-            console.error('Error executing the query:', error);
+            await this.logService.logAndThrow('error', '❌ Error al ejecutar la consulta de admisiones.', 'AdmissionService');
             throw new InternalServerErrorException("No se pudo obtener la admisión.");
         }
     }
-    
 
+    /**
+     * Obtiene una admisión específica utilizando el documento del paciente y el consecutivo de admisión.
+     * 
+     * @param documentPatient - Documento del paciente.
+     * @param consecutiveAdmission - Consecutivo de la admisión.
+     * @returns La admisión correspondiente a las claves proporcionadas.
+     */
     async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission>{
         const query = `
         SELECT 
@@ -217,15 +255,24 @@ export class AdmissionService {
             const admission = await this.datasource.query(query);
             return admission;
         } catch (error) {
-            await this.logService.logAndThrow('warn','No se pudo obtener admisión específica buscada.', 'AdmissionService');
+            await this.logService.logAndThrow('warn', '⚠️ No se pudo obtener admisión específica buscada.', 'AdmissionService');
             throw new InternalServerErrorException("No se pudo obtener la admision.", error);
         }
     }
 
+    /**
+     * Guarda una nueva admisión en la base de datos con la firma digital proporcionada.
+     * 
+     * @param documentPatient - Documento del paciente.
+     * @param consecutiveAdmission - Consecutivo de la admisión.
+     * @param signature - La firma digital.
+     * @returns La admisión guardada en la base de datos.
+     */
     async saveAdmission(documentPatient: string, consecutiveAdmission: string, signature: string): Promise<Admission> {
         const admissionData = await this.getAdmissionByKeys(documentPatient, consecutiveAdmission);
     
         if (!admissionData) {
+            await this.logService.logAndThrow('warn', '⚠️ No se encontró la admisión para el paciente.', 'AdmissionService');
             throw new InternalServerErrorException('Admisión no encontrada');
         }
 
@@ -258,9 +305,11 @@ export class AdmissionService {
         });
     
         try {
+            await this.logService.log('info', `✔️ Guardando admisión con consecutivo ${admission.consecutiveAdmission}.`, 'AdmissionService');
             await admission.save();
             return admission;
         } catch (error) {
+            await this.logService.logAndThrow('error', '❌ Error al guardar la admisión con la firma digital.', 'AdmissionService');
             throw new InternalServerErrorException('Error al guardar la admisión con la firma digital', error);
         }
     }    

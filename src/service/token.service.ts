@@ -18,6 +18,13 @@ import { Model } from "mongoose";
  */
 @Injectable()
 export class TokenService {
+    
+    /**
+     * Constructor del servicio `TokenService`.
+     * Este servicio se encarga de la generación, almacenamiento y validación de tokens.
+     * Se inyectan los servicios necesarios como el servicio de administración de usuarios, 
+     * el servicio de JWT, el servicio de logs y el modelo de tokens.
+     */
     constructor(
         @InjectModel(Token.name) private tokenModel: Model<TokenDocument>,  
         private readonly jwtService: JwtService,
@@ -44,12 +51,12 @@ export class TokenService {
             const tokens = await this.tokenModel.find().exec();
 
             if(tokens.length === 0){
-                await this.logService.log('warn', `No se encontraron tokens en la base de datos.`, 'TokenService');
+                await this.logService.log('warn', `⚠️ No se encontraron tokens en la base de datos.`, 'TokenService');
             }
 
             return tokens;
         } catch (error) {
-            await this.logService.log('error', `Error al obtener los tokens: ${error.message}`, 'TokenService');
+            await this.logService.log('error', `❌ Error al obtener los tokens: ${error.message}`, 'TokenService');
             throw new InternalServerErrorException('No se pudo obtener la lista de tokens.');
         }
     }

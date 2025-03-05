@@ -17,6 +17,12 @@ import { DataSource } from 'typeorm';
  */
 @Injectable()
 export class AdmUsrService {
+    
+    /**
+     * Constructor del servicio `AdmUsrService`.
+     * @param datasource - Fuente de datos de TypeORM para interactuar con la base de datos SQL Server.
+     * @param logService - Servicio para registrar los logs.
+     */
     constructor(
         private readonly datasource: DataSource,
         private readonly logService: LogService
@@ -25,8 +31,9 @@ export class AdmUsrService {
     /**
      * Obtiene todos los usuarios almacenados en la base de datos.
      * 
-     * - Realiza una consulta SQL para obtener todos los registros de usuarios.
-     * - Devuelve una lista de objetos `AdmUsr` con la información de los usuarios.
+     * Realiza una consulta SQL para obtener todos los registros de usuarios de la base de datos.
+     * Devuelve una lista de objetos `AdmUsr` con la información de los usuarios, como el nombre, descripción, 
+     * contraseña y grupo del usuario.
      * 
      * @returns {Promise<AdmUsr[]>} Lista de todos los usuarios en la base de datos.
      * @throws {InternalServerErrorException} Si ocurre un error al obtener los usuarios.
@@ -45,7 +52,6 @@ export class AdmUsrService {
 
         try {
             const users = await this.datasource.query(query);
-            await this.logService.log('info', `✅ Se encontraron ${users.length} usuarios.`, 'AdmUsrService');
             return users.map(user => new AdmUsr(user.username, user.description, user.password, user.agroup));
         } catch (error) {
             await this.logService.log('error', `❌ Error al obtener usuarios: ${error.message}`, 'AdmUsrService');
@@ -54,17 +60,15 @@ export class AdmUsrService {
     }
 
     /**
-    * Servicio para la gestión de usuarios administrativos en la base de datos SQL Server.
-    * 
-    * Este servicio permite interactuar con la base de datos SQL Server para realizar operaciones de obtención
-    * de datos sobre los usuarios administrativos, incluyendo la obtención de todos los usuarios, búsqueda de 
-    * un usuario por su ID o por su nombre de usuario.
-    * 
-    * Funcionalidades:
-    * - Obtener todos los usuarios.
-    * - Buscar un usuario por ID.
-    * - Buscar un usuario por nombre de usuario.
-    */
+     * Busca un usuario específico por su ID.
+     * 
+     * Realiza una consulta SQL para buscar un usuario por su ID. Si el usuario no existe en la base de datos,
+     * devuelve `null`. Si el usuario se encuentra, devuelve un objeto `AdmUsr` con los datos del usuario.
+     * 
+     * @param id - El ID del usuario a buscar.
+     * @returns {Promise<AdmUsr | null>} El usuario encontrado o `null` si no existe.
+     * @throws {InternalServerErrorException} Si ocurre un error al buscar el usuario.
+     */
     async findById(id: string): Promise<any | null> {
         await this.logService.log('info', `📢 Buscando usuario por ID: ${id}`, 'AdmUsrService');
 
@@ -85,7 +89,6 @@ export class AdmUsrService {
                 return null;
             }
 
-            await this.logService.log('info', `✅ Usuario con ID ${id} encontrado.`, 'AdmUsrService');
             return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].agroup);
         } catch (error) {
             await this.logService.log('error', `❌ Error al buscar usuario por ID ${id}: ${error.message}`, 'AdmUsrService');
@@ -96,9 +99,9 @@ export class AdmUsrService {
     /**
      * Busca un usuario específico por su nombre de usuario.
      * 
-     * - Realiza una consulta SQL para buscar un usuario por su nombre de usuario en la base de datos.
-     * - Si no se encuentra el usuario, devuelve `null`.
-     * - Si se encuentra, devuelve un objeto `AdmUsr` con los datos del usuario.
+     * Realiza una consulta SQL para buscar un usuario por su nombre de usuario en la base de datos.
+     * Si no se encuentra el usuario, devuelve `null`. Si se encuentra, devuelve un objeto `AdmUsr` con los 
+     * datos del usuario.
      * 
      * @param {string} username - El nombre de usuario a buscar.
      * @returns {Promise<AdmUsr | null>} El usuario encontrado o `null` si no existe.
@@ -124,7 +127,6 @@ export class AdmUsrService {
                 return null;
             }
 
-            await this.logService.log('info', `✅ Usuario con nombre ${username} encontrado.`, 'AdmUsrService');
             return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].agroup);
         } catch (error) {
             await this.logService.log('error', `❌ Error al buscar usuario ${username}: ${error.message}`, 'AdmUsrService');
