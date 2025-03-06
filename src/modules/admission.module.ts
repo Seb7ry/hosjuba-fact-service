@@ -9,18 +9,22 @@ import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 
 import { AdmissionService } from 'src/service/admission.service';
+
 @Module({
     imports: [
         LogModule,
         SignatureModule,
-        SqlServerConnectionModule,
-        MongooseModule.forFeature([{ name: Admission.name, schema: AdmissionSchema }]),
         JwtModule.register({
             secret: process.env.JWT_SECRET,
             signOptions: { expiresIn: process.env.TIME_SESSION },
         }),
+        SqlServerConnectionModule,
+        MongooseModule.forFeature([{ name: Admission.name, schema: AdmissionSchema }]),
+    ], 
+    controllers: [
+        AdmissionController
     ],
-    controllers: [AdmissionController],
-    providers: [AdmissionService],
+    providers: [AdmissionService
+    ],
 })
 export class AdmissionsModule {}

@@ -22,13 +22,19 @@ dotenv.config();
       secret: process.env.JWT_SECRET,  
       signOptions: { expiresIn: process.env.TIME_SESSION }, 
     }),
-  ],
-  controllers: [AuthController],  
+  ], 
+  controllers: [
+    AuthController
+  ], 
   providers: [
     AuthService,  
-    AdmUsrService, 
     JwtAuthGuard,  
+    AdmUsrService, 
+  ], 
+  exports: [
+    AuthService, 
+    JwtModule, 
+    JwtAuthGuard
   ],
-  exports: [AuthService, JwtModule, JwtAuthGuard],
 })
 export class AuthModule {}

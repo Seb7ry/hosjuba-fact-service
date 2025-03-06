@@ -17,18 +17,23 @@ dotenv.config();
     imports: [
         LogModule,
         AdmUsrModule,
-        MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]),
         JwtModule.register({
             secret: process.env.JWT_SECRET,
             signOptions: { expiresIn: process.env.TIME_SESSION },
         }),
-    ],
-    controllers: [TokenController],
+        MongooseModule.forFeature([{ name: Token.name, schema: TokenSchema }]),
+    ], 
+    controllers: [
+        TokenController
+    ], 
     providers: [
         JwtAuthGuard,
         TokenService,
         AdmUsrService,
+    ], 
+    exports: [
+        TokenService, 
+        MongooseModule
     ],
-    exports: [TokenService, MongooseModule],
 })
 export class TokenModule {}
