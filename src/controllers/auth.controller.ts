@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, InternalServerErrorException, NotFoundException, Post, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { AuthService } from "src/service/auth.service";
 import { LoginDto } from "src/dto/login.dto";
@@ -27,7 +27,13 @@ export class AuthController {
             const userTokens = await this.authService.login(loginDto.username, loginDto.password);
             return userTokens;
         } catch (error) {
-            throw new UnauthorizedException('Credenciales inválidas.');
+            if (error.message.includes('Usuario no encontrado')) {
+                throw new NotFoundException('Usuario no encontrado.');
+            } else if (error.message.includes('Contraseña incorrecta')) {
+                throw new UnauthorizedException('Contraseña incorrecta.');
+            } else {
+                throw new InternalServerErrorException('Error interno del servidor. Inténtalo más tarde.');
+            }
         }
     }
 

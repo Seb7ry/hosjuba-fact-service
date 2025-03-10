@@ -1,6 +1,6 @@
 import { AdmUsrService } from "./admusr.service";
 import { TokenService } from "./token.service";
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { LogService } from "./log.service";
 import { JwtService } from "@nestjs/jwt";
 
@@ -46,14 +46,16 @@ export class AuthService {
         const user = await this.admUsrService.findByUser(username);
         if (!user) {
             await this.logService.logAndThrow('warn', `Usuario no encontrado: ${username}`, 'AuthService');
+            throw new HttpException('', HttpStatus.NOT_FOUND)
         }
 
         if (password !== user.password.trim()) {
             await this.logService.logAndThrow('warn', `Contraseña incorrecta para usuario: ${username}`, 'AuthService');
+            throw new HttpException('', HttpStatus.UNAUTHORIZED)
         }
-
-        const { access_token, access_token_expires_at } = await this.tokenService.generateAccessToken(username);
-        const { refresh_token, refresh_token_expires_at } = await this.tokenService.generateRefreshToken(username);
+        
+        const { access_token } = await this.tokenService.generateAccessToken(username);
+        const { refresh_token } = await this.tokenService.generateRefreshToken(username);
         return { access_token, refresh_token };
     }
 

@@ -58,6 +58,7 @@ export class AdmissionService {
                 ) AS fullNamePatient,
                 LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
                 LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
+                LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,
                 LTRIM(RTRIM(TF.TFNoAc)) AS nameCompanion,
                 LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
                 LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
@@ -122,6 +123,7 @@ export class AdmissionService {
                 ) AS namePatient,
                 LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
                 LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
+                LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,
                 LTRIM(RTRIM(TF.TFNoAc)) AS nameCompanion,
                 LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
                 LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
@@ -240,6 +242,7 @@ export class AdmissionService {
             ) AS namePatient,
             LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
             LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
+            LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,
             LTRIM(RTRIM(TF.TFNoAc)) AS nameCompanion,
             LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
             LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
