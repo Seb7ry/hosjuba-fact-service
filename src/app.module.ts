@@ -16,6 +16,7 @@ import { AdmissionsModule } from './modules/admission.module';
 import { SignatureModule } from './modules/signature.module';
 import { SqlServerConnectionModule } from './modules/sqlServerConnection.module';
 import { SqlServerConnectionService } from './service/sqlServerConnection.service';
+import { HistoryUsrModule } from './modules/historyusr.module';
 dotenv.config();
 
 /**
@@ -32,6 +33,7 @@ dotenv.config();
     TokenModule,
     AdmUsrModule,
     SignatureModule,
+    HistoryUsrModule,
     AdmissionsModule,
     SqlServerConnectionModule,
     MongooseModule.forRoot(`mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}` +

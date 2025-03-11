@@ -70,6 +70,7 @@ export class AdmissionService {
                 ON I.IngCsc = TF.TmCtvIng
                 AND I.MPCedu = TF.TFCedu
                 AND I.MPTDoc = TF.TFTDoc
+                WHERE I.MPCodP <> 9
             ORDER BY I.IngFecAdm DESC`;
 
         try {
@@ -120,7 +121,7 @@ export class AdmissionService {
                     LTRIM(RTRIM(CB.MPNom2)), ' ', 
                     LTRIM(RTRIM(CB.MPApe1)), ' ', 
                     LTRIM(RTRIM(CB.MPApe2))
-                ) AS namePatient,
+                ) AS fullNamePatient,
                 LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
                 LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
                 LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,
@@ -129,13 +130,14 @@ export class AdmissionService {
                 LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
             FROM INGRESOS I
                 LEFT JOIN CAPBAS CB
-                ON I.MPCedu = CB.MPCedu
-                AND I.MPTDoc = CB.MPTDoc
+                    ON I.MPCedu = CB.MPCedu
+                    AND I.MPTDoc = CB.MPTDoc
                 LEFT JOIN TMPFAC TF
-                ON I.IngCsc = TF.TmCtvIng
-                AND I.MPCedu = TF.TFCedu
-                AND I.MPTDoc = TF.TFTDoc
-            WHERE I.MPCedu = @documentPatient`; 
+                    ON I.IngCsc = TF.TmCtvIng
+                    AND I.MPCedu = TF.TFCedu
+                    AND I.MPTDoc = TF.TFTDoc
+            WHERE I.MPCedu = @documentPatient
+                AND I.MPCodP <> 9`; 
 
         if (consecutiveAdmission) {
             query += ` AND I.IngCsc = @consecutiveAdmission`;
@@ -239,7 +241,7 @@ export class AdmissionService {
                 LTRIM(RTRIM(CB.MPNom2)), ' ', 
                 LTRIM(RTRIM(CB.MPApe1)), ' ', 
                 LTRIM(RTRIM(CB.MPApe2))
-            ) AS namePatient,
+            ) AS fullNamePatient,
             LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
             LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
             LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,

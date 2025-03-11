@@ -22,7 +22,8 @@ import { Module } from '@nestjs/common';
         LogService
     ], 
     exports: [
-        LogService
+        LogService,
+        MongooseModule.forFeature([{ name: Log.name, schema: LogSchema }]),
     ]
 })
 export class LogModule {}
