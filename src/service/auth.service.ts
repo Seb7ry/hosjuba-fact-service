@@ -42,25 +42,29 @@ export class AuthService {
      * 
      * @throws {InternalServerErrorException} - Si el usuario no existe o la contraseña es incorrecta.
      */
-    async login(username: string, password: string): Promise<{ access_token: string; refresh_token: string }> {
+    async login(username: string, password: string): Promise<{ access_token: string; refresh_token: string; grupo: string }> {
         const user = await this.admUsrService.findByUser(username);
         if (!user) {
             await this.logService.logAndThrow('warn', `Usuario no encontrado: ${username}`, 'AuthService');
-            throw new HttpException('', HttpStatus.NOT_FOUND)
+            throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
         }
-
+    
         if (password !== user.password.trim()) {
             await this.logService.logAndThrow('warn', `Contraseña incorrecta para usuario: ${username}`, 'AuthService');
-            throw new HttpException('', HttpStatus.UNAUTHORIZED)
+            throw new HttpException('Credenciales incorrectas', HttpStatus.UNAUTHORIZED);
         }
-        
-        const { access_token } = await this.tokenService.generateAccessToken(username);
-        const { refresh_token } = await this.tokenService.generateRefreshToken(username);
-        await this.tokenService.saveUserGroup(username, user.AGrpId);
-        await this.logService.log('info', `Usuario ${username} autenticado con éxito y asignado al grupo ${user.AGrpId}`, 'AuthService');
+    
+        const { access_token } = await this.tokenService.generateAccessToken(user.username);
+        const { refresh_token } = await this.tokenService.generateRefreshToken(user.username);
 
-        return { access_token, refresh_token };
-    }
+        await this.tokenService.saveUserGroup(user.username , user.grupoId);
+    
+        return { 
+            access_token, 
+            refresh_token, 
+            grupo: user.grupoId || 'SIN_GRUPO' 
+        };
+    }    
 
     /**
      * Método para cerrar la sesión de un usuario.

@@ -5,7 +5,6 @@ import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { LogService } from "./log.service";
 import { JwtService } from "@nestjs/jwt";
 import { Model } from "mongoose";
-import { group } from "console";
 
 /**
  * TokenService maneja la generación, validación, almacenamiento y eliminación de tokens de acceso
@@ -40,9 +39,6 @@ export class TokenService {
      * @returns El payload generado para el token.
      */
     private generatePayload(user: any, type: string) {
-        console.log('payload user: ', user);
-        console.log('payload user.grupoId', user.grupoId);
-    
         return { 
             sub: user.AUsrId, 
             username: user.AUsrId, 
@@ -181,13 +177,9 @@ export class TokenService {
      * @param groupId - El ID del grupo al que pertenece el usuario.
      */
     async saveUserGroup(username: string, groupId: string): Promise<void> {
-        console.log('save primero', groupId)
         if (!groupId) {
-            console.error(`❌ No se recibió un groupId válido para el usuario: ${groupId}`);
             return;
         }
-    
-        console.log(`✅ Guardando groupId: ${groupId} para el usuario: ${username}`);
     
         await this.tokenModel.updateOne(
             { _id: username.trim() }, 

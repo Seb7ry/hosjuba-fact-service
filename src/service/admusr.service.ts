@@ -46,13 +46,13 @@ export class AdmUsrService {
                 LTRIM(RTRIM(dbo.desencriptar(AUsrId))) AS username, 
                 LTRIM(RTRIM(AUsrDsc)) AS description, 
                 LTRIM(RTRIM(dbo.desencriptar(AUsrPsw))) AS password, 
-                LTRIM(RTRIM(AgrpId)) AS agroup
+                LTRIM(RTRIM(AgrpId)) AS grupoId
             FROM ADMUSR
         `;
 
         try {
             const users = await this.datasource.query(query);
-            return users.map(user => new AdmUsr(user.username, user.description, user.password, user.agroup));
+            return users.map(user => new AdmUsr(user.username, user.description, user.password, user.grupoId));
         } catch (error) {
             await this.logService.log('error', `❌ Error al obtener usuarios: ${error.message}`, 'AdmUsrService');
             throw new InternalServerErrorException("No se pudo obtener la lista de usuarios.");
@@ -77,7 +77,7 @@ export class AdmUsrService {
                 LTRIM(RTRIM(dbo.desencriptar(AUsrId))) AS username, 
                 LTRIM(RTRIM(AUsrDsc)) AS description, 
                 LTRIM(RTRIM(dbo.desencriptar(AUsrPsw))) AS password, 
-                LTRIM(RTRIM(AgrpId)) AS agroup
+                LTRIM(RTRIM(AgrpId)) AS grupoId
             FROM ADMUSR 
             WHERE dbo.desencriptar(AUsrId) = @0
         `;
@@ -89,7 +89,7 @@ export class AdmUsrService {
                 return null;
             }
 
-            return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].agroup);
+            return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].grupoId);
         } catch (error) {
             await this.logService.log('error', `❌ Error al buscar usuario por ID ${id}: ${error.message}`, 'AdmUsrService');
             throw new InternalServerErrorException("No se pudo obtener el usuario.");
@@ -115,7 +115,7 @@ export class AdmUsrService {
                 LTRIM(RTRIM(dbo.desencriptar(AUsrId))) AS username, 
                 LTRIM(RTRIM(AUsrDsc)) AS description, 
                 LTRIM(RTRIM(dbo.desencriptar(AUsrPsw))) AS password, 
-                LTRIM(RTRIM(AgrpId)) AS agroup
+                LTRIM(RTRIM(AgrpId)) AS grupoId
             FROM ADMUSR 
             WHERE dbo.desencriptar(AUsrId) = @0
         `;
@@ -127,7 +127,7 @@ export class AdmUsrService {
                 return null;
             }
 
-            return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].agroup);
+            return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].grupoId);
         } catch (error) {
             await this.logService.log('error', `❌ Error al buscar usuario ${username}: ${error.message}`, 'AdmUsrService');
             throw new InternalServerErrorException("No se pudo obtener el usuario.");
