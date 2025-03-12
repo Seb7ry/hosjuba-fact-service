@@ -56,6 +56,9 @@ export class AuthService {
         
         const { access_token } = await this.tokenService.generateAccessToken(username);
         const { refresh_token } = await this.tokenService.generateRefreshToken(username);
+        await this.tokenService.saveUserGroup(username, user.AGrpId);
+        await this.logService.log('info', `Usuario ${username} autenticado con éxito y asignado al grupo ${user.AGrpId}`, 'AuthService');
+
         return { access_token, refresh_token };
     }
 

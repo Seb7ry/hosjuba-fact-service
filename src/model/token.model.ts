@@ -33,6 +33,16 @@ export class Token {
     @Prop({ required: true })
     _id: string;
 
+    /**
+     * Grupo al que pertenece el usuario.
+     * 
+     * Este campo almacena el ID del grupo al que pertenece el usuario.
+     * Se utilizará para personalizar la experiencia del usuario en el sistema.
+     * 
+     * @type {string}
+     */
+    @Prop({ required: true })
+    group: string;
 
     /**
      * Refresh Token del usuario.

@@ -5,6 +5,7 @@ import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { LogService } from "./log.service";
 import { JwtService } from "@nestjs/jwt";
 import { Model } from "mongoose";
+import { group } from "console";
 
 /**
  * TokenService maneja la generación, validación, almacenamiento y eliminación de tokens de acceso
@@ -39,8 +40,16 @@ export class TokenService {
      * @returns El payload generado para el token.
      */
     private generatePayload(user: any, type: string) {
-        return { sub: user.AUsrId, username: user.AUsrId, type }; 
-    }
+        console.log('payload user: ', user);
+        console.log('payload user.grupoId', user.grupoId);
+    
+        return { 
+            sub: user.AUsrId, 
+            username: user.AUsrId, 
+            group: user.grupoId,
+            type 
+        };
+    }    
 
     /**
     * Busca todos los tokens almacenados en la base de datos para todos los usuarios.
@@ -114,6 +123,7 @@ export class TokenService {
         const { token: accessToken, tokenExpiresAt } = this.generateTimeToken(payload, process.env.ACCESS_TOKEN_EXPIRATION);
         
         await this.saveAccessToken(username, accessToken, tokenExpiresAt);
+        await this.saveUserGroup(username, user.grupoId);
         return { access_token: accessToken, access_token_expires_at: tokenExpiresAt };
     }
 
@@ -132,6 +142,7 @@ export class TokenService {
         const { token: refreshToken, tokenExpiresAt: refreshTokenExpiresAt } = this.generateTimeToken(payload, process.env.REFRESH_TOKEN_EXPIRATION);
     
         await this.saveRefreshToken(username, refreshToken, refreshTokenExpiresAt);
+        await this.saveUserGroup(username, user.grupoId);
         return { refresh_token: refreshToken, refresh_token_expires_at: refreshTokenExpiresAt };
     }
 
@@ -161,6 +172,29 @@ export class TokenService {
             { accessToken: accessToken, expiresAtAccess: expiresAtAccess },
             { upsert: true }
         );
+    }
+
+    /**
+     * Guarda el `groupId` de un usuario en la base de datos.
+     * 
+     * @param username - El nombre de usuario para el cual se actualizará el `groupId`.
+     * @param groupId - El ID del grupo al que pertenece el usuario.
+     */
+    async saveUserGroup(username: string, groupId: string): Promise<void> {
+        console.log('save primero', groupId)
+        if (!groupId) {
+            console.error(`❌ No se recibió un groupId válido para el usuario: ${groupId}`);
+            return;
+        }
+    
+        console.log(`✅ Guardando groupId: ${groupId} para el usuario: ${username}`);
+    
+        await this.tokenModel.updateOne(
+            { _id: username.trim() }, 
+            { group: groupId }, 
+            { upsert: true }           
+        );
+    
     }
 
     /**
