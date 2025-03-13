@@ -320,5 +320,33 @@ export class AdmissionService {
             await this.logService.logAndThrow('error', '❌ Error al guardar la admisión con la firma digital.', 'AdmissionService');
             throw new InternalServerErrorException('Error al guardar la admisión con la firma digital', error);
         }
-    }    
+    }
+
+    /**
+     * 🔹 Obtiene las admisiones firmadas en MongoDB según la lista proporcionada.
+     * 
+     * @param admissions - Lista de admisiones obtenida desde SQL Server.
+     * @returns Array con los `consecutiveAdmission` de las admisiones que ya tienen firma.
+     */
+    async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
+        try {
+            const admissionKeys = admissions.map(adm => ({
+                documentPatient: adm.documentPatient,
+                consecutiveAdmission: adm.consecutiveAdmission
+            }));
+
+            const signedAdmissions = await this.admissionModel.find({
+                $and: [
+                    { documentPatient: { $in: admissionKeys.map(adm => adm.documentPatient) } },
+                    { consecutiveAdmission: { $in: admissionKeys.map(adm => adm.consecutiveAdmission) } },
+                    { digitalSignature: { $ne: null } }
+                ]
+            }, { consecutiveAdmission: 1 });
+
+            return signedAdmissions;
+        } catch (error) {
+            await this.logService.logAndThrow('error', '❌ Error al verificar admisiones firmadas.', 'AdmissionService');
+            throw new InternalServerErrorException("No se pudo verificar qué admisiones tienen firma.", error);
+        }
+    }
 }

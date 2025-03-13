@@ -3,6 +3,7 @@
     import { InjectModel } from "@nestjs/mongoose";
     import { Model } from "mongoose";
     import { ConfigService } from "@nestjs/config";
+import { timeStamp } from "console";
 
     /**
      * Servicio para manejar los logs del sistema.
@@ -92,7 +93,7 @@
             };
         
             try {
-                return await this.logModel.find(query);
+                return await this.logModel.find(query).sort({timestamp: -1});
             } catch (error) {
                 this.logger.error(`❌ Error al obtener los logs: ${error.message}`);
                 throw new UnauthorizedException('No se pudieron obtener los logs.');
