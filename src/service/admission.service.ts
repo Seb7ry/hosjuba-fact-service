@@ -322,31 +322,27 @@ export class AdmissionService {
         }
     }
 
-    /**
-     * 🔹 Obtiene las admisiones firmadas en MongoDB según la lista proporcionada.
-     * 
-     * @param admissions - Lista de admisiones obtenida desde SQL Server.
-     * @returns Array con los `consecutiveAdmission` de las admisiones que ya tienen firma.
-     */
     async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
         try {
-            const admissionKeys = admissions.map(adm => ({
-                documentPatient: adm.documentPatient,
-                consecutiveAdmission: adm.consecutiveAdmission
-            }));
-
-            const signedAdmissions = await this.admissionModel.find({
-                $and: [
-                    { documentPatient: { $in: admissionKeys.map(adm => adm.documentPatient) } },
-                    { consecutiveAdmission: { $in: admissionKeys.map(adm => adm.consecutiveAdmission) } },
-                    { digitalSignature: { $ne: null } }
-                ]
-            }, { consecutiveAdmission: 1 });
-
+            if (!admissions || admissions.length === 0) {
+                return [];
+            }
+    
+            const signedAdmissions = await this.admissionModel.find(
+                {
+                    $and: [
+                        { documentPatient: { $in: admissions.map(adm => adm.documentPatient) } },
+                        { consecutiveAdmission: { $in: admissions.map(adm => adm.consecutiveAdmission) } },
+                        { digitalSignature: { $ne: null } }
+                    ]
+                },
+                { documentPatient: 1, consecutiveAdmission: 1, _id: 0 }
+            ).lean();
+    
             return signedAdmissions;
         } catch (error) {
             await this.logService.logAndThrow('error', '❌ Error al verificar admisiones firmadas.', 'AdmissionService');
             throw new InternalServerErrorException("No se pudo verificar qué admisiones tienen firma.", error);
         }
-    }
+    }    
 }

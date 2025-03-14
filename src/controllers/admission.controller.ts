@@ -135,20 +135,11 @@ export class AdmissionController {
         }
     }
 
-    /**
-     * Obtiene las admisiones que ya tienen una firma digital en MongoDB.
-     * 
-     * Este endpoint recibe una lista de admisiones desde SQL Server y devuelve las que ya han sido firmadas.
-     * 
-     * @param admissions - Lista de admisiones con `documentPatient` y `consecutiveAdmission`.
-     * @returns Lista de `consecutiveAdmission` que ya tienen firma.
-     * @throws `NotFoundException` si ocurre un error al obtener las admisiones firmadas.
-     */
     @Post('signed')
     @UseGuards(JwtAuthGuard)
     async getSignedAdmissions(
         @Body('admissions') admissions: { documentPatient: string; consecutiveAdmission: number }[]
-    ): Promise<number[]> {
+    ): Promise<any[]> {
         try {
             if (!Array.isArray(admissions) || admissions.length === 0) {
                 throw new NotFoundException("Debes proporcionar una lista de admisiones válida.");
