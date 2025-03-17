@@ -57,26 +57,23 @@ export class AdmissionService {
                     LTRIM(RTRIM(CB.MPApe2))
                 ) AS fullNamePatient,
                 LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-                LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
-                LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,
-                LTRIM(RTRIM(TF.TFNoAc)) AS nameCompanion,
-                LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
-                LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
+                LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
+                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
+                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
+                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
+                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
             FROM INGRESOS I
-            JOIN CAPBAS CB
-                ON I.MPCedu = CB.MPCedu
-            AND I.MPTDoc = CB.MPTDoc
-            JOIN TMPFAC TF
-                ON I.IngCsc = TF.TmCtvIng
-                AND I.MPCedu = TF.TFCedu
-                AND I.MPTDoc = TF.TFTDoc
-                WHERE I.MPCodP <> 9
+            LEFT JOIN CAPBAS CB
+                ON I.MPTDoc = CB.MPTDoc
+                AND I.MPCedu = CB.MPCedu
+            WHERE I.MPCodP <> 9 
             ORDER BY I.IngFecAdm DESC`;
 
         try {
             const admissions = await this.datasource.query(query);
             return admissions;
         } catch (error) {
+            console.log(error)
             await this.logService.logAndThrow('warn', '⚠️ No se pudo obtener la lista de admisiones.', 'AdmissionService');
             throw new InternalServerErrorException("No se pudo obtener la lista de admisiones.", error);
         }
@@ -123,21 +120,17 @@ export class AdmissionService {
                     LTRIM(RTRIM(CB.MPApe2))
                 ) AS fullNamePatient,
                 LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-                LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
-                LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,
-                LTRIM(RTRIM(TF.TFNoAc)) AS nameCompanion,
-                LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
-                LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
+                LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
+                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
+                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
+                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
+                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
             FROM INGRESOS I
                 LEFT JOIN CAPBAS CB
                     ON I.MPCedu = CB.MPCedu
                     AND I.MPTDoc = CB.MPTDoc
-                LEFT JOIN TMPFAC TF
-                    ON I.IngCsc = TF.TmCtvIng
-                    AND I.MPCedu = TF.TFCedu
-                    AND I.MPTDoc = TF.TFTDoc
-            WHERE I.MPCedu = @documentPatient
-                AND I.MPCodP <> 9`; 
+            WHERE I.MPCodP <> 9 
+                AND I.MPCedu = @documentPatient`; 
 
         if (consecutiveAdmission) {
             query += ` AND I.IngCsc = @consecutiveAdmission`;
@@ -243,19 +236,15 @@ export class AdmissionService {
                 LTRIM(RTRIM(CB.MPApe2))
             ) AS fullNamePatient,
             LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-            LTRIM(RTRIM(TF.TFTiDocAc)) AS typeDocumentCompanion,
-            LTRIM(RTRIM(TF.TFDocAco)) AS documentCompanion,
-            LTRIM(RTRIM(TF.TFNoAc)) AS nameCompanion,
-            LTRIM(RTRIM(TF.TFTeAc)) AS phoneCompanion,
-            LTRIM(RTRIM(TF.TFParAc)) AS relationCompanion
+            LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
+            LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
+            LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
+            LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
+            LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
         FROM INGRESOS I
         LEFT JOIN CAPBAS CB
             ON I.MPCedu = CB.MPCedu
             AND I.MPTDoc = CB.MPTDoc
-        LEFT JOIN TMPFAC TF
-            ON I.IngCsc = TF.TmCtvIng
-            AND I.MPCedu = TF.TFCedu
-            AND I.MPTDoc = TF.TFTDoc
         WHERE I.MPCedu = @documentPatient
         AND I.IngCsc = @consecutiveAdmission`;
 
