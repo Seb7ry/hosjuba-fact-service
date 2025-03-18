@@ -156,10 +156,40 @@ export class AdmissionController {
     @UseGuards(JwtAuthGuard)
     async getSignedAdmissionsAll(){
         try {
-            const admissions = await this.admissionService.getAllAdmissions();
+            const admissions = await this.admissionService.getSignedAdmissionsAll();
             return admissions;
         } catch (error) {
             throw new InternalServerErrorException('No se pudieron obtener las admisiones', error);
+        }
+    }
+    
+    @Get('signedFiltrer')
+    @UseGuards(JwtAuthGuard)
+    async getSignedAdmissionsFiltrer(
+        @Query('documentPatient') documentPatient: string,
+        @Query('consecutiveAdmission') consecutiveAdmission: string,
+        @Query('startDateAdmission') startDateAdmission: string,
+        @Query('endDateAdmission') endDateAdmission: string,
+        @Query('userAdmission') userAdmission: string,
+        @Query('typeAdmission') typeAdmission: string
+    ): Promise<Admission[]> {
+        try {
+            const filteredAdmissions = await this.admissionService.getSignedAdmissionsFiltrer(
+                documentPatient, 
+                consecutiveAdmission, 
+                startDateAdmission, 
+                endDateAdmission, 
+                userAdmission, 
+                typeAdmission
+            );
+            
+            if (filteredAdmissions.length === 0) {
+                throw new NotFoundException('No se encontraron admisiones con los filtros proporcionados.');
+            }
+
+            return filteredAdmissions;
+        } catch (error) {
+            throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
         }
     }
 }

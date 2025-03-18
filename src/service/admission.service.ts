@@ -344,4 +344,33 @@ export class AdmissionService {
             throw new InternalServerErrorException("No se pudo obtener todas las admisiones.", error);
         }
     }
+
+    async getSignedAdmissionsFiltrer(
+        documentPatient?: string,
+        consecutiveAdmission?: string,
+        startDateAdmission?: string,
+        endDateAdmission?: string,
+        userAdmission?: string,
+        typeAdmission?: string
+    ): Promise<Admission[]> {
+        try {
+            let query: any = { };
+    
+            // Filtros según los parámetros proporcionados
+            if (documentPatient) query['documentPatient'] = documentPatient;
+            if (consecutiveAdmission) query['consecutiveAdmission'] = consecutiveAdmission;
+            if (startDateAdmission) query['dateAdmission'] = { $gte: new Date(startDateAdmission) };
+            if (endDateAdmission) query['dateAdmission'] = { $lte: new Date(endDateAdmission) };
+            if (userAdmission) query['userAdmission'] = userAdmission;
+            if (typeAdmission) query['typeAdmission'] = typeAdmission;
+    
+            const filteredAdmissions = await this.admissionModel.find(query).lean();
+    
+            return filteredAdmissions;
+        } catch (error) {
+            await this.logService.logAndThrow('error', '❌ Error al obtener las admisiones filtradas.', 'AdmissionService');
+            throw new InternalServerErrorException('No se pudieron obtener las admisiones filtradas.', error);
+        }
+    }
+    
 }
