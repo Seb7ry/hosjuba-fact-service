@@ -20,7 +20,7 @@ export type LogDocument = Log & Document;
 * la opción `timestamps` para crear automáticamente los campos `createdAt`
 * y `updatedAt`.
 */
-@Schema({ collection: 'logsTec', timestamps: true }) 
+@Schema({ collection: 'logs', timestamps: true }) 
 export class Log {
 
     /**

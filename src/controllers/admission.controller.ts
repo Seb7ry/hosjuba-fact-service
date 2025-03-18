@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Post, Query, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post, Query, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
@@ -149,6 +149,17 @@ export class AdmissionController {
         } catch (error) {
             console.error("❌ Error en getSignedAdmissions:", error);
             throw new NotFoundException('No se pudo obtener la lista de admisiones firmadas.');
+        }
+    }
+
+    @Get('signedAll')
+    @UseGuards(JwtAuthGuard)
+    async getSignedAdmissionsAll(){
+        try {
+            const admissions = await this.admissionService.getAllAdmissions();
+            return admissions;
+        } catch (error) {
+            throw new InternalServerErrorException('No se pudieron obtener las admisiones', error);
         }
     }
 }

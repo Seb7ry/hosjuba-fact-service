@@ -56,17 +56,16 @@ export class AdmissionService {
                     LTRIM(RTRIM(CB.MPApe1)), ' ', 
                     LTRIM(RTRIM(CB.MPApe2))
                 ) AS fullNamePatient,
-                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-                LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
-                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
-                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
-                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
-                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
+                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient
             FROM INGRESOS I
-            LEFT JOIN CAPBAS CB
-                ON I.MPTDoc = CB.MPTDoc
-                AND I.MPCedu = CB.MPCedu
-            WHERE I.MPCodP <> 9 
+            JOIN CAPBAS CB
+                ON I.MPCedu = CB.MPCedu
+            AND I.MPTDoc = CB.MPTDoc
+            JOIN TMPFAC TF
+                ON I.IngCsc = TF.TmCtvIng
+                AND I.MPCedu = TF.TFCedu
+                AND I.MPTDoc = TF.TFTDoc
+                WHERE I.MPCodP <> 9
             ORDER BY I.IngFecAdm DESC`;
 
         try {
@@ -334,4 +333,15 @@ export class AdmissionService {
             throw new InternalServerErrorException("No se pudo verificar qué admisiones tienen firma.", error);
         }
     }    
+
+    async getSignedAdmissionsAll(): Promise<any[]>{
+        try {
+            const allAdmissions = await this.admissionModel.find().lean();
+            
+            return allAdmissions;
+        } catch (error) {
+            await this.logService.logAndThrow('error', '❌ Error al obtener todas las admisiones.', 'AdmissionService');
+            throw new InternalServerErrorException("No se pudo obtener todas las admisiones.", error);
+        }
+    }
 }
