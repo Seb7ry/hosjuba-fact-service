@@ -56,6 +56,7 @@ export class JwtAuthGuard implements CanActivate {
         }
 
         const tokenParts = authHeader.split(' ');
+
         if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
             this.logger.warn(`Formato incorrecto en el token de autenticación. Header recibido: ${authHeader}`);
             throw new UnauthorizedException('Formato de token inválido. Debe ser "Bearer <TOKEN>".');
@@ -70,6 +71,7 @@ export class JwtAuthGuard implements CanActivate {
 
         try {
             const decoded = this.jwtService.verify(token, { secret: process.env.JWT_SECRET });
+            request.user = decoded;
             if (decoded.type === 'refresh') {
                 this.logger.warn(`Intento de uso de token de refresco en autenticación. Usuario: ${decoded.username}`);
                 throw new UnauthorizedException('No puedes usar el token de refrescar para generar autorización a una solicitud.');

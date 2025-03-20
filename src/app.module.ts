@@ -17,6 +17,7 @@ import { SignatureModule } from './modules/signature.module';
 import { SqlServerConnectionModule } from './modules/sqlServerConnection.module';
 import { SqlServerConnectionService } from './service/sqlServerConnection.service';
 import { HistoryUsrModule } from './modules/historyusr.module';
+import { DataModule } from './modules/data.module';
 dotenv.config();
 
 /**
@@ -30,6 +31,7 @@ dotenv.config();
   imports: [
     LogModule,
     AuthModule,
+    DataModule,
     TokenModule,
     AdmUsrModule,
     SignatureModule,

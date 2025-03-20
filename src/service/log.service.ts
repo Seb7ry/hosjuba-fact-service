@@ -3,7 +3,11 @@
     import { InjectModel } from "@nestjs/mongoose";
     import { Model } from "mongoose";
     import { ConfigService } from "@nestjs/config";
-import { timeStamp } from "console";
+    import { timeStamp } from "console";
+    import { AuthService } from "./auth.service";
+    import { Request } from 'express';
+import { DataService } from "./data.service";
+import { JwtService } from "@nestjs/jwt";
 
     /**
      * Servicio para manejar los logs del sistema.
@@ -22,7 +26,9 @@ import { timeStamp } from "console";
          */
         constructor(
             @InjectModel(Log.name) private logModel: Model<LogDocument>,
-            private readonly configService: ConfigService) {}
+            private readonly configService: ConfigService,
+            private readonly jwtService: JwtService,
+            private readonly dataService: DataService) {}
 
         /**
          * Registra un log en la base de datos y luego lanza una excepción con el mensaje dado.
@@ -52,8 +58,11 @@ import { timeStamp } from "console";
          * 
          * @throws {Error} - Si ocurre un error al guardar el log en la base de datos.
          */
-        async log(level: 'info' | 'warn' | 'error', message: string, context: string, expiration?: string) {
+        async log(level: 'info' | 'warn' | 'error', message: string, context: string, expiration?: string, req?: Request) {
             try {
+                const user = await this.dataService.extractUserFromToken(req);
+                console.log('user', user)
+
                 const expirationTime = this.configService.get<string>('LOG_EXPIRATION');
                 const expiresAtLogT = expirationTime ? this.calculateExpiration(expirationTime) : undefined;
 
@@ -62,7 +71,8 @@ import { timeStamp } from "console";
                     message, 
                     context, 
                     timestamp: new Date(), 
-                    expiresAtLogT
+                    expiresAtLogT,
+                    user
                 });
 
                 if (level === 'error') {

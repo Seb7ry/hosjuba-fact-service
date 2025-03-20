@@ -34,6 +34,16 @@ export class Token {
     _id: string;
 
     /**
+     * Nombre de usuario del usuario al que pertenece el token.
+     * 
+     * Este campo almacena el nombre de usuario.
+     * 
+     * @type {string}
+     */
+    @Prop({ required: true })
+    username: string;
+
+    /**
      * Grupo al que pertenece el usuario.
      * 
      * Este campo almacena el ID del grupo al que pertenece el usuario.

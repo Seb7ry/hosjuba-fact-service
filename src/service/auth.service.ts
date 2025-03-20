@@ -1,8 +1,9 @@
 import { AdmUsrService } from "./admusr.service";
 import { TokenService } from "./token.service";
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { LogService } from "./log.service";
 import { JwtService } from "@nestjs/jwt";
+import { Request } from 'express';
 
 /**
  * Servicio de autenticación que maneja el inicio y cierre de sesión de los usuarios.

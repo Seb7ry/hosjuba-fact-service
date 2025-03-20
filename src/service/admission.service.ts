@@ -69,6 +69,7 @@ export class AdmissionService {
             ORDER BY I.IngFecAdm DESC`;
 
         try {
+              
             const admissions = await this.datasource.query(query);
             return admissions;
         } catch (error) {

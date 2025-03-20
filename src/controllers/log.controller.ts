@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UnauthorizedException, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { LogService } from 'src/service/log.service';
 
@@ -28,7 +28,7 @@ export class LogController {
      */
     @Get()
     @UseGuards(JwtAuthGuard)
-    async getLogs(@Query('level') level: string[] = ['info', 'warn', 'error'], 
+    async getLogs(@Query('level') level: string[] = ['info', 'warn', 'error'], @Req() req: Request 
     ) {
         try {
             const logs = await this.logService.getLogs(level);

@@ -41,7 +41,7 @@ export class TokenService {
     private generatePayload(user: any, type: string) {
         return { 
             sub: user.AUsrId, 
-            username: user.AUsrId, 
+            username: user.username, 
             group: user.grupoId,
             type 
         };
@@ -71,11 +71,11 @@ export class TokenService {
      * @param _id - El ID del usuario para el que se busca el token.
      * @returns El documento del token si se encuentra, o `null` si no se encuentra.
      */
-    async findTokenByName(_id: string): Promise<Token | null> {
-        const token = await this.tokenModel.findOne({ _id: _id.trim() }).exec(); 
+    async findTokenByName(username: string): Promise<Token | null> {
+        const token = await this.tokenModel.findOne({ username: username.trim() }).exec(); 
     
         if (!token) {
-            await this.logService.log('warn', `❌ No se encontró un token para el usuario: ${_id}`, 'TokenService');
+            await this.logService.log('warn', `❌ No se encontró un token para el usuario: ${username}`, 'TokenService');
         }
         return token;
     }    
@@ -150,7 +150,7 @@ export class TokenService {
      */
     async saveRefreshToken(username: string, refreshToken: string, expiresAtRefresh: Date): Promise<void> {
         await this.tokenModel.updateOne(
-            { _id: username.trim() }, 
+            { username: username.trim() }, 
             { refreshToken: refreshToken, expiresAtRefresh: expiresAtRefresh },
             { upsert: true }
         );
@@ -164,7 +164,7 @@ export class TokenService {
      */
     async saveAccessToken(username: string, accessToken: string, expiresAtAccess: Date): Promise<void> {
         await this.tokenModel.updateOne(
-            { _id: username.trim() }, 
+            { username: username.trim() }, 
             { accessToken: accessToken, expiresAtAccess: expiresAtAccess },
             { upsert: true }
         );
@@ -182,7 +182,7 @@ export class TokenService {
         }
     
         await this.tokenModel.updateOne(
-            { _id: username.trim() }, 
+            { username: username.trim() }, 
             { group: groupId }, 
             { upsert: true }           
         );
@@ -257,14 +257,14 @@ export class TokenService {
             await this.logService.log('warn', `❌ El username proporcionado no es válido: ${username}`, 'TokenService');
             return false;
         }
-    
+
         const token = await this.findTokenByName(username);
         if (!token) {
             await this.logService.log('warn', `❌ No se encontró el token para el usuario: ${username}`, 'TokenService');
             return false;
         }
-
-        const result = await this.tokenModel.deleteOne({ _id: username.trim() });
+        const result = await this.tokenModel.deleteOne({ username: username.trim() });
+    
         if (result.deletedCount > 0) {
             await this.logService.log('info', `✅ Token eliminado exitosamente para el usuario: ${username}`, 'TokenService');
             return true;
@@ -273,6 +273,7 @@ export class TokenService {
         await this.logService.log('warn', `❌ No se pudo eliminar el token para el usuario: ${username}`, 'TokenService');
         return false;
     }
+    
     
     /**
      * Refresca el access token de un usuario utilizando su refresh token.
