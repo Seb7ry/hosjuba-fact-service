@@ -11,24 +11,12 @@ import { SignatureService } from "./signature.service";
 import { LogService } from "./log.service";
 
 import * as dotenv from 'dotenv';
+import { start } from "repl";
 dotenv.config(); 
 
-/**
- * Servicio para gestionar las admisiones en el sistema.
- * Este servicio interactúa con varias bases de datos (MongoDB y SQL Server), 
- * y permite realizar operaciones de obtención, filtrado, búsqueda y creación de admisiones.
- */
 @Injectable()
 export class AdmissionService {
 
-    /**
-     * Constructor de la clase AdmissionService.
-     * @param admissionModel - Modelo de Mongoose para las admisiones.
-     * @param signatureService - Servicio encargado de generar las firmas digitales.
-     * @param datasource - Fuente de datos (TypeORM) para interactuar con la base de datos SQL.
-     * @param logService - Servicio para registrar los logs.
-     * @param sqlService - Servicio para gestionar la conexión con SQL Server.
-     */
     constructor(
         @InjectModel(Admission.name) private admissionModel: Model<AdmissionDocument>,
         private readonly signatureService: SignatureService,
@@ -37,12 +25,7 @@ export class AdmissionService {
         private readonly sqlService: SqlServerConnectionService
     ) { }
 
-    /**
-     * Obtiene todas las admisiones de la base de datos SQL.
-     * 
-     * @returns Una lista de objetos de tipo `Admission`.
-     */
-    async getAllAdmissions(): Promise<Admission[]> {
+    async getAllAdmissions(req: Request): Promise<Admission[]> {
         const query = `
             SELECT 
                 I.IngCsc AS consecutiveAdmission,
@@ -69,30 +52,19 @@ export class AdmissionService {
             ORDER BY I.IngFecAdm DESC`;
 
         try {
-              
             const admissions = await this.datasource.query(query);
             return admissions;
         } catch (error) {
-            console.log(error)
-            await this.logService.logAndThrow('warn', '⚠️ No se pudo obtener la lista de admisiones.', 'AdmissionService');
+            await this.logService.log('warn', `Error al obtener la lista de admisiones: ${error}`, 'AdmissionService', undefined, req.user.username);
             throw new InternalServerErrorException("No se pudo obtener la lista de admisiones.", error);
         }
     }
 
-    /**
-     * Filtra las admisiones según los parámetros proporcionados.
-     * 
-     * @param documentPatient - Documento del paciente.
-     * @param consecutiveAdmission - Consecutivo de la admisión.
-     * @param startDateAdmission - Fecha de inicio de la admisión.
-     * @param endDateAdmission - Fecha final de la admisión.
-     * @param userAdmission - Usuario que registró la admisión.
-     * @param typeAdmission - Tipo de admisión.
-     * @returns Una lista de objetos de tipo `Admission` filtrados.
-     */
-    async getAdmissionFiltrer(documentPatient: string, consecutiveAdmission: string, 
+    async getAdmissionFiltrer(req: Request, documentPatient: string, consecutiveAdmission: string, 
         startDateAdmission: string, endDateAdmission: string,
         userAdmission: string, typeAdmission: string): Promise<Admission[]> {
+
+        let mesage = 'Filtro(s):';
 
             if (startDateAdmission && endDateAdmission) {
                 const start = new Date(startDateAdmission);
@@ -100,7 +72,7 @@ export class AdmissionService {
     
                 if (start >= end) {
         
-                await this.logService.logAndThrow('warn', '⚠️ La fecha de inicio debe ser menor a la fecha final.', 'AdmissionService');
+                await this.logService.log('warn', 'La fecha de inicio debe ser menor a la fecha final en los filtros de búsqueda.', 'AdmissionService', undefined, req.user.username);
                 throw new InternalServerErrorException("La fecha de inicio debe ser menor a la fecha final.");
             }
         }
@@ -173,10 +145,12 @@ export class AdmissionService {
             const request = new Request(connectionPool);
 
             if (documentPatient) {
+                mesage += ` documento: ${documentPatient}`;
                 request.input('documentPatient', documentPatient);
             }
 
             if (consecutiveAdmission) {
+                mesage += ` consecutivo: ${consecutiveAdmission}`;
                 request.input('consecutiveAdmission', consecutiveAdmission);
             }
 
@@ -191,14 +165,20 @@ export class AdmissionService {
                 request.input('end', end);
             }
 
+            if(startDateAdmission) mesage += ` fechaInicio: ${startDateAdmission}`;
+            if(endDateAdmission) mesage += ` fechaFinal: ${endDateAdmission}`;
+
             if (userAdmission) {
+                mesage += ` usuarioAdmision: ${userAdmission}`;
                 request.input('userAdmission', userAdmission);
             }
 
             if (typeAdmission) {
+                mesage += ` tipoAdmision: ${typeAdmission}`;
                 request.input('typeAdmission', typeAdmission);
             }
 
+            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa.a ${mesage}.`, 'AdmissionService', undefined, req.user.username);
             const result = await request.query(query);
 
             if (result.recordset.length === 0) {
@@ -208,18 +188,11 @@ export class AdmissionService {
             return result.recordset;
 
         } catch (error) {
-            await this.logService.logAndThrow('error', '❌ Error al ejecutar la consulta de admisiones.', 'AdmissionService');
-            throw new InternalServerErrorException("No se pudo obtener la admisión.");
+            await this.logService.logAndThrow('error', `Error al ejecutar la consulta filtrada de admisiones: ${error.message}`, 'AdmissionService');
+            throw new InternalServerErrorException("No se pudo obtener la admisión.", error);
         }
     }
 
-    /**
-     * Obtiene una admisión específica utilizando el documento del paciente y el consecutivo de admisión.
-     * 
-     * @param documentPatient - Documento del paciente.
-     * @param consecutiveAdmission - Consecutivo de la admisión.
-     * @returns La admisión correspondiente a las claves proporcionadas.
-     */
     async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission>{
         const query = `
         SELECT 
@@ -252,20 +225,12 @@ export class AdmissionService {
             const admission = await this.datasource.query(query);
             return admission;
         } catch (error) {
-            await this.logService.logAndThrow('warn', '⚠️ No se pudo obtener admisión específica buscada.', 'AdmissionService');
+            await this.logService.logAndThrow('error', `Error al obtener la admisión específica buscada: ${error.message}`, 'AdmissionService');
             throw new InternalServerErrorException("No se pudo obtener la admision.", error);
         }
     }
 
-    /**
-     * Guarda una nueva admisión en la base de datos con la firma digital proporcionada.
-     * 
-     * @param documentPatient - Documento del paciente.
-     * @param consecutiveAdmission - Consecutivo de la admisión.
-     * @param signature - La firma digital.
-     * @returns La admisión guardada en la base de datos.
-     */
-    async saveAdmission(documentPatient: string, consecutiveAdmission: string, signature: string): Promise<Admission> {
+    async saveAdmission(req: Request, documentPatient: string, consecutiveAdmission: string, signature: string): Promise<Admission> {
         const admissionData = await this.getAdmissionByKeys(documentPatient, consecutiveAdmission);
     
         if (!admissionData) {
@@ -302,11 +267,11 @@ export class AdmissionService {
         });
     
         try {
-            await this.logService.log('info', `✔️ Guardando admisión con consecutivo ${admission.consecutiveAdmission}.`, 'AdmissionService');
+            await this.logService.log('info', `Guardando admisión con consecutivo ${admission.consecutiveAdmission} y documento ${admission.documentPatient}.`, 'AdmissionService', undefined, req.user.username);
             await admission.save();
             return admission;
         } catch (error) {
-            await this.logService.logAndThrow('error', '❌ Error al guardar la admisión con la firma digital.', 'AdmissionService');
+            await this.logService.logAndThrow('error', `Error al guardar la admisión con la firma digital: ${error.message}`, 'AdmissionService');
             throw new InternalServerErrorException('Error al guardar la admisión con la firma digital', error);
         }
     }
@@ -330,7 +295,7 @@ export class AdmissionService {
     
             return signedAdmissions;
         } catch (error) {
-            await this.logService.logAndThrow('error', '❌ Error al verificar admisiones firmadas.', 'AdmissionService');
+            await this.logService.logAndThrow('error', `Error al verificar admisiones firmadas. Error: ${error.message}`, 'AdmissionService');
             throw new InternalServerErrorException("No se pudo verificar qué admisiones tienen firma.", error);
         }
     }    
@@ -341,12 +306,13 @@ export class AdmissionService {
             
             return allAdmissions;
         } catch (error) {
-            await this.logService.logAndThrow('error', '❌ Error al obtener todas las admisiones.', 'AdmissionService');
+            await this.logService.logAndThrow('error', `Error al obtener todas las admisiones: ${error.message}`, 'AdmissionService');
             throw new InternalServerErrorException("No se pudo obtener todas las admisiones.", error);
         }
     }
 
     async getSignedAdmissionsFiltrer(
+        req: Request,
         documentPatient?: string,
         consecutiveAdmission?: string,
         startDateAdmission?: string,
@@ -354,24 +320,47 @@ export class AdmissionService {
         userAdmission?: string,
         typeAdmission?: string
     ): Promise<Admission[]> {
-        try {
+        let mesage = 'Filtro(s): ';
+        
+         try {
             let query: any = { };
     
-            // Filtros según los parámetros proporcionados
-            if (documentPatient) query['documentPatient'] = documentPatient;
-            if (consecutiveAdmission) query['consecutiveAdmission'] = consecutiveAdmission;
-            if (startDateAdmission) query['dateAdmission'] = { $gte: new Date(startDateAdmission) };
-            if (endDateAdmission) query['dateAdmission'] = { $lte: new Date(endDateAdmission) };
-            if (userAdmission) query['userAdmission'] = userAdmission;
-            if (typeAdmission) query['typeAdmission'] = typeAdmission;
+            if (documentPatient){
+                mesage += ` documento: ${documentPatient}`;
+                query['documentPatient'] = documentPatient;
+            }
+
+            if (consecutiveAdmission) {
+                mesage += ` consecutivo: ${consecutiveAdmission}`;
+                query['consecutiveAdmission'] = consecutiveAdmission;
+            }
+            
+            if (startDateAdmission) {
+                mesage += ` fechaInicio: ${startDateAdmission}`;
+                query['dateAdmission'] = { $gte: new Date(startDateAdmission) };
+            }
+            
+            if (endDateAdmission) {
+                mesage += ` fechaFinal: ${endDateAdmission}`;
+                query['dateAdmission'] = { $lte: new Date(endDateAdmission) };
+            }
+            
+            if (userAdmission) {
+                mesage += ` usuarioAdmision: ${userAdmission}`;
+                query['userAdmission'] = userAdmission;
+            }
+            
+            if (typeAdmission) {
+                mesage += ` tipoAdmision: ${typeAdmission}`;
+                query['typeAdmission'] = typeAdmission;
+            }
     
+            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa. ${mesage}.`, 'AdmissionService', undefined, req.user.username);
             const filteredAdmissions = await this.admissionModel.find(query).lean();
-    
             return filteredAdmissions;
         } catch (error) {
-            await this.logService.logAndThrow('error', '❌ Error al obtener las admisiones filtradas.', 'AdmissionService');
+            await this.logService.logAndThrow('error', `Error al obtener las admisiones filtradas: ${error.message}`, 'AdmissionService');
             throw new InternalServerErrorException('No se pudieron obtener las admisiones filtradas.', error);
         }
     }
-    
 }

@@ -1,9 +1,9 @@
 import { AdmUsrService } from "./admusr.service";
 import { TokenService } from "./token.service";
+import { ConnectionPool, Request } from 'mssql';
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { LogService } from "./log.service";
 import { JwtService } from "@nestjs/jwt";
-import { Request } from 'express';
 
 /**
  * Servicio de autenticación que maneja el inicio y cierre de sesión de los usuarios.
@@ -58,8 +58,8 @@ export class AuthService {
         const { access_token } = await this.tokenService.generateAccessToken(user.username);
         const { refresh_token } = await this.tokenService.generateRefreshToken(user.username);
 
+        await this.logService.log('info', 'Inicio de sesión.', 'AuthService', undefined, username);
         await this.tokenService.saveUserGroup(user.username , user.grupoId);
-    
         return { 
             access_token, 
             refresh_token, 
@@ -78,9 +78,10 @@ export class AuthService {
      * 
      * @throws {InternalServerErrorException} - Si no se encuentra un refresh token para el usuario.
      */
-    async logout(username: string): Promise<string> {
+    async logout(req: Request, username: string): Promise<string> {
         const result = await this.tokenService.deleteToken(username);
         if (result) {
+            await this.logService.log('info', `Cierre de sesión.`, 'AuthService', undefined, req.user.username);
             return `Sesión cerrada exitosamente para el usuario: ${username}`;
         } else {
             await this.logService.logAndThrow('warn', `No se encontró un refresh token para el usuario: ${username}`, 'AuthService');

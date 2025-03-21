@@ -3,11 +3,7 @@
     import { InjectModel } from "@nestjs/mongoose";
     import { Model } from "mongoose";
     import { ConfigService } from "@nestjs/config";
-    import { timeStamp } from "console";
-    import { AuthService } from "./auth.service";
-    import { Request } from 'express';
-import { DataService } from "./data.service";
-import { JwtService } from "@nestjs/jwt";
+    import { JwtService } from "@nestjs/jwt";
 
     /**
      * Servicio para manejar los logs del sistema.
@@ -27,8 +23,7 @@ import { JwtService } from "@nestjs/jwt";
         constructor(
             @InjectModel(Log.name) private logModel: Model<LogDocument>,
             private readonly configService: ConfigService,
-            private readonly jwtService: JwtService,
-            private readonly dataService: DataService) {}
+            private readonly jwtService: JwtService,) {}
 
         /**
          * Registra un log en la base de datos y luego lanza una excepción con el mensaje dado.
@@ -58,11 +53,8 @@ import { JwtService } from "@nestjs/jwt";
          * 
          * @throws {Error} - Si ocurre un error al guardar el log en la base de datos.
          */
-        async log(level: 'info' | 'warn' | 'error', message: string, context: string, expiration?: string, req?: Request) {
+        async log(level: 'info' | 'warn' | 'error', message: string, context: string, expiration?: string, user?: string) {
             try {
-                const user = await this.dataService.extractUserFromToken(req);
-                console.log('user', user)
-
                 const expirationTime = this.configService.get<string>('LOG_EXPIRATION');
                 const expiresAtLogT = expirationTime ? this.calculateExpiration(expirationTime) : undefined;
 

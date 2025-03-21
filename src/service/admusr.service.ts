@@ -1,4 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConnectionPool, Request } from 'mssql';
 import { AdmUsr } from 'src/model/admusr.model';
 import { LogService } from './log.service';
 import { DataSource } from 'typeorm';
@@ -39,8 +40,6 @@ export class AdmUsrService {
      * @throws {InternalServerErrorException} Si ocurre un error al obtener los usuarios.
      */
     async findAll(): Promise<AdmUsr[]> {
-        await this.logService.log('info', "📢 Consultando todos los usuarios...", 'AdmUsrService');
-
         const query = `
             SELECT 
                 LTRIM(RTRIM(dbo.desencriptar(AUsrId))) AS username, 
@@ -54,7 +53,7 @@ export class AdmUsrService {
             const users = await this.datasource.query(query);
             return users.map(user => new AdmUsr(user.username, user.description, user.password, user.grupoId));
         } catch (error) {
-            await this.logService.log('error', `❌ Error al obtener usuarios: ${error.message}`, 'AdmUsrService');
+            await this.logService.logAndThrow('error', `Error al obtener usuarios de SQLServer: ${error.message}`, 'AdmUsrService');
             throw new InternalServerErrorException("No se pudo obtener la lista de usuarios.");
         }
     }
@@ -70,7 +69,6 @@ export class AdmUsrService {
      * @throws {InternalServerErrorException} Si ocurre un error al buscar el usuario.
      */
     async findById(id: string): Promise<any | null> {
-        await this.logService.log('info', `📢 Buscando usuario por ID: ${id}`, 'AdmUsrService');
 
         const query = `
             SELECT 
@@ -85,13 +83,13 @@ export class AdmUsrService {
         try {
             const result = await this.datasource.query(query, [id]); 
             if (result.length === 0) {
-                await this.logService.log('warn', `⚠️ Usuario con ID ${id} no encontrado.`, 'AdmUsrService');
+                await this.logService.logAndThrow('warn', `Usuario con ID ${id} no encontrado.`, 'AdmUsrService');
                 return null;
             }
 
             return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].grupoId);
         } catch (error) {
-            await this.logService.log('error', `❌ Error al buscar usuario por ID ${id}: ${error.message}`, 'AdmUsrService');
+            await this.logService.logAndThrow('error', `Error al buscar usuario por ID ${id}: ${error.message}`, 'AdmUsrService');
             throw new InternalServerErrorException("No se pudo obtener el usuario.");
         }
     }
@@ -108,8 +106,6 @@ export class AdmUsrService {
      * @throws {InternalServerErrorException} Si ocurre un error al buscar el usuario.
      */
     async findByUser(username: string): Promise<any | null> {
-        await this.logService.log('info', `📢 Buscando usuario por nombre de usuario: ${username}`, 'AdmUsrService');
-
         const query = `
             SELECT 
                 LTRIM(RTRIM(dbo.desencriptar(AUsrId))) AS username, 
@@ -123,13 +119,13 @@ export class AdmUsrService {
         try {
             const result = await this.datasource.query(query, [username]);
             if (result.length === 0) {
-                await this.logService.log('warn', `⚠️ Usuario con nombre ${username} no encontrado.`, 'AdmUsrService');
+                await this.logService.logAndThrow('warn', `Usuario con nombre ${username} no encontrado.`, 'AdmUsrService');
                 return null;
             }
 
             return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].grupoId);
         } catch (error) {
-            await this.logService.log('error', `❌ Error al buscar usuario ${username}: ${error.message}`, 'AdmUsrService');
+            await this.logService.logAndThrow('error', `Error al buscar usuario ${username}: ${error.message}`, 'AdmUsrService');
             throw new InternalServerErrorException("No se pudo obtener el usuario.");
         }
     }

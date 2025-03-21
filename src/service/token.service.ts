@@ -56,12 +56,12 @@ export class TokenService {
             const tokens = await this.tokenModel.find().exec();
 
             if(tokens.length === 0){
-                await this.logService.log('warn', `⚠️ No se encontraron tokens en la base de datos.`, 'TokenService');
+                await this.logService.logAndThrow('warn', `No se encontraron tokens en la base de datos.`, 'TokenService');
             }
 
             return tokens;
         } catch (error) {
-            await this.logService.log('error', `❌ Error al obtener los tokens: ${error.message}`, 'TokenService');
+            await this.logService.logAndThrow('error', `Error al obtener los tokens: ${error.message}`, 'TokenService');
             throw new InternalServerErrorException('No se pudo obtener la lista de tokens.');
         }
     }
@@ -75,7 +75,7 @@ export class TokenService {
         const token = await this.tokenModel.findOne({ username: username.trim() }).exec(); 
     
         if (!token) {
-            await this.logService.log('warn', `❌ No se encontró un token para el usuario: ${username}`, 'TokenService');
+            await this.logService.logAndThrow('warn', `No se encontró un token para el usuario: ${username}`, 'TokenService');
         }
         return token;
     }    
@@ -113,7 +113,7 @@ export class TokenService {
     async generateAccessToken(username: string): Promise<{ access_token: string; access_token_expires_at: Date }> {
         const user = await this.admUsrService.findByUser(username);
         if (!user) {
-            await this.logService.logAndThrow('warn', `Usuario no encontrado: ${username}`, 'TokenService');
+            await this.logService.logAndThrow('warn', `No se puede generar token de acceso, usuario no encontrado: ${username}`, 'TokenService');
         }
         const payload = this.generatePayload(user, 'access');
         const { token: accessToken, tokenExpiresAt } = this.generateTimeToken(payload, process.env.ACCESS_TOKEN_EXPIRATION);
@@ -131,7 +131,7 @@ export class TokenService {
     async generateRefreshToken(username: string): Promise<{ refresh_token: string; refresh_token_expires_at: Date }> {
         const user = await this.admUsrService.findByUser(username);
         if (!user) {
-            await this.logService.logAndThrow('warn', `Usuario no encontrado: ${username}`, 'TokenService');
+            await this.logService.logAndThrow('warn', `No se puede generar token de refresco, usuario no encontrado: ${username}`, 'TokenService');
         }
     
         const payload = this.generatePayload(user, 'refresh');
@@ -204,17 +204,15 @@ export class TokenService {
 
         const isValid = refreshToken == tokenRecord.refreshToken;
         if (!isValid) {
-            await this.logService.log('warn', `❌ Refresh token inválido para usuario: ${username}`, 'TokenService');
+            await this.logService.log('warn', `Refresh token inválido para usuario: ${username}`, 'TokenService');
             return false;
         }
         
         const now = new Date();
         if (tokenRecord.expiresAtRefresh <= now) {
-            await this.logService.log('warn', `❌ Refresh token expirado para usuario: ${username}`, 'TokenService');
+            await this.logService.log('warn', `Refresh token expirado para usuario: ${username}`, 'TokenService');
             return false;
         }
-
-        await this.logService.log('info', `✅ Refresh token válido para usuario: ${username}`, 'TokenService');
         return true;
     }
 
@@ -233,17 +231,15 @@ export class TokenService {
 
         const isValid = accessToken === tokenRecord.accessToken;
         if (!isValid) {
-            await this.logService.log('warn', `❌ Access token inválido para usuario: ${username}`, 'TokenService');
+            await this.logService.log('warn', `Access token inválido para usuario: ${username}`, 'TokenService');
             return false;
         }
         
         const now = new Date();
         if (tokenRecord.expiresAtAccess <= now) {
-            await this.logService.log('warn', `❌ Access token expirado para usuario: ${username}`, 'TokenService');
+            await this.logService.log('warn', `Access token expirado para usuario: ${username}`, 'TokenService');
             return false;
         }
-
-        await this.logService.log('info', `✅ Access token válido para usuario: ${username}`, 'TokenService');
         return true;
     }
 
@@ -254,23 +250,22 @@ export class TokenService {
      */
     async deleteToken(username: string): Promise<boolean> {
         if (typeof username !== 'string' || username.trim() === '') {
-            await this.logService.log('warn', `❌ El username proporcionado no es válido: ${username}`, 'TokenService');
+            await this.logService.log('warn', `El username proporcionado no es válido: ${username}`, 'TokenService');
             return false;
         }
 
         const token = await this.findTokenByName(username);
         if (!token) {
-            await this.logService.log('warn', `❌ No se encontró el token para el usuario: ${username}`, 'TokenService');
+            await this.logService.log('warn', `No se encontró el token para el usuario: ${username}`, 'TokenService');
             return false;
         }
         const result = await this.tokenModel.deleteOne({ username: username.trim() });
     
         if (result.deletedCount > 0) {
-            await this.logService.log('info', `✅ Token eliminado exitosamente para el usuario: ${username}`, 'TokenService');
             return true;
         }
     
-        await this.logService.log('warn', `❌ No se pudo eliminar el token para el usuario: ${username}`, 'TokenService');
+        await this.logService.log('warn', `No se pudo eliminar el token para el usuario: ${username}`, 'TokenService');
         return false;
     }
     
@@ -289,7 +284,6 @@ export class TokenService {
 
         const { access_token } = await this.generateAccessToken(username);
         await this.saveAccessToken(username, access_token, new Date(Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRATION) * 60000));
-        await this.logService.log('info', `Nuevo access token generado para el usuario: ${username}`, 'TokenService');
         return { access_token };
     }
 }

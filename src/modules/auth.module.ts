@@ -11,14 +11,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 
 import * as dotenv from 'dotenv';
-import { DataModule } from './data.module';
 dotenv.config(); 
 
 @Module({
   imports: [
     LogModule,
-    TokenModule,  
-    DataModule,// Asegúrate de que TokenModule esté importado
+    TokenModule,
     AdmUsrModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,  

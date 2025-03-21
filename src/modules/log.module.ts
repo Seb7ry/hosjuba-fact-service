@@ -6,11 +6,9 @@ import { LogService } from 'src/service/log.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
-import { DataModule } from './data.module';
-import { DataService } from 'src/service/data.service';
+
 @Module({
     imports: [
-        DataModule,
         JwtModule,
         
         JwtModule.register({
@@ -24,7 +22,6 @@ import { DataService } from 'src/service/data.service';
     ], 
     providers: [
         LogService,
-        DataService
     ], 
     exports: [
         LogService,
