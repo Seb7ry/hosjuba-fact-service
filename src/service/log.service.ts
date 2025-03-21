@@ -1,9 +1,11 @@
     import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+    import { ConnectionPool, Request } from 'mssql';
     import { Log, LogDocument } from "src/model/log.model";
     import { InjectModel } from "@nestjs/mongoose";
     import { Model } from "mongoose";
     import { ConfigService } from "@nestjs/config";
     import { JwtService } from "@nestjs/jwt";
+import { start } from "repl";
 
     /**
      * Servicio para manejar los logs del sistema.
@@ -40,19 +42,6 @@
             throw new UnauthorizedException(message);
         }
 
-        /**
-         * Registra un log en la base de datos y lo imprime en consola según su nivel.
-         * 
-         * Este método almacena el log en la base de datos y luego imprime el mensaje en la consola dependiendo del nivel 
-         * del log (info, warn o error). Si se especifica un tiempo de expiración, se calcula y se asigna a la entrada del log.
-         * 
-         * @param level - Nivel del log (info, warn, error).
-         * @param message - El mensaje del log.
-         * @param context - El contexto donde se produjo el log.
-         * @param expiration - Tiempo de expiración del log (opcional).
-         * 
-         * @throws {Error} - Si ocurre un error al guardar el log en la base de datos.
-         */
         async log(level: 'info' | 'warn' | 'error', message: string, context: string, expiration?: string, user?: string) {
             try {
                 const expirationTime = this.configService.get<string>('LOG_EXPIRATION');
@@ -75,42 +64,45 @@
                     this.logger.log(message, context);
                 }
             } catch (error) {
-                this.logger.error(`❌ No se pudo guardar el log en la base de datos: ${error.message}`);
+                this.logger.error(`No se pudo guardar el log en la base de datos: ${error.message}`);
             }
         }
 
-        /**
-         * Obtiene los logs almacenados en la base de datos filtrados por niveles.
-         * 
-         * Este método permite obtener los logs almacenados en la base de datos, filtrando por los niveles 
-         * de log proporcionados (info, warn, error).
-         * 
-         * @param levels - Array de niveles de log a filtrar (opcional). Ejemplo: ['info', 'warn'].
-         * @returns Una lista de logs filtrados según los criterios proporcionados.
-         * @throws {UnauthorizedException} - Si ocurre un error al obtener los logs de la base de datos.
-         */
-        async getLogs( level: string[] = ['info', 'warn', 'error']) {
+        async getLogsTec(req: Request, level: string[] = ['warn', 'error'], startDate?: string, endDate?: string) {            
+            let message = 'Filtro(s): ';
+
             const query: any = {
                 level: { $in: level }
             };
+
+            if(level) message += ` nivel(es): ${level}`;
+        
+            if (startDate) {
+                message += ` fechaInicial: ${startDate}`;
+                const start = new Date(startDate);
+                start.setUTCHours(0, 0, 0, 0); 
+        
+                if (endDate) {
+                    message += ` fechaFinal: ${endDate}`;
+                    const end = new Date(endDate);
+                    end.setUTCHours(23, 59, 59, 999); 
+                    query.timestamp = { $gte: start.toISOString(), $lte: end.toISOString() };
+                } else {
+                    const endOfDay = new Date(start);
+                    endOfDay.setUTCHours(23, 59, 59, 999);
+                    query.timestamp = { $gte: start.toISOString(), $lte: endOfDay.toISOString() };
+                }
+            }
         
             try {
-                return await this.logModel.find(query).sort({timestamp: -1});
+                await this.log('info', `Buscando logs mediante filtro. ${message}`, 'LogService', undefined, req.user.username)
+                return await this.logModel.find(query).sort({ timestamp: -1 });
             } catch (error) {
-                this.logger.error(`❌ Error al obtener los logs: ${error.message}`);
+                this.logger.error(`Error al obtener los logs: ${error.message}`);
                 throw new UnauthorizedException('No se pudieron obtener los logs.');
             }
-        }    
-
-        /**
-         * Calcula la fecha de expiración a partir de una duración dada (por ejemplo, '5m', '1h').
-         * 
-         * Este método calcula la fecha de expiración sumando la duración proporcionada a la fecha y hora actual.
-         * 
-         * @param expiration - La duración de expiración en formato de texto (por ejemplo, '5m', '1h').
-         * @returns La fecha de expiración calculada.
-         * @throws {Error} - Si la unidad de tiempo proporcionada no es soportada.
-         */
+        }
+        
         private calculateExpiration(expiration: string): Date {
             const now = Date.now();
             const [value, unit] = expiration.split(/(\d+)/).filter(Boolean);

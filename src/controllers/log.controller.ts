@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UnauthorizedException, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Query, UnauthorizedException, UseGuards, Req, Request } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { LogService } from 'src/service/log.service';
 
@@ -12,26 +12,18 @@ import { LogService } from 'src/service/log.service';
 export class LogController {
     constructor(private readonly logService: LogService) { }
 
-    /**
-     * Endpoint para obtener logs almacenados en la base de datos, filtrados por el nivel de log.
-     * 
-     * El método `getLogs` permite realizar consultas de logs por su nivel (info, warn, error). 
-     * El valor por defecto del nivel es `['info', 'warn', 'error']`, pero se puede especificar
-     * un array de niveles a través del parámetro `level` en la consulta.
-     * 
-     * El uso del guard `JwtAuthGuard` asegura que solo los usuarios autenticados puedan acceder a este recurso.
-     * 
-     * @param level - Array de niveles de log a filtrar. Ejemplo: `['info', 'warn']`. 
-     *                Si no se proporciona, se utilizarán los niveles por defecto: `['info', 'warn', 'error']`.
-     * @returns Una lista de logs filtrados según el nivel especificado.
-     * @throws UnauthorizedException Si ocurre un error en la búsqueda de logs.
-     */
-    @Get()
+    @Get('filtrerTec')
     @UseGuards(JwtAuthGuard)
-    async getLogs(@Query('level') level: string[] = ['info', 'warn', 'error'], @Req() req: Request 
+    async getLogsTec(
+        @Request() req: Request,
+        @Query('level') level?: string | string[],  // Filtro por nivel
+        @Query('startDate') startDate?: string,  // Filtro por fecha de inicio
+        @Query('endDate') endDate?: string,  // Filtro por fecha de fin
     ) {
         try {
-            const logs = await this.logService.getLogs(level);
+            const levels = Array.isArray(level) ? level : [level].filter(l => l);
+
+            const logs = await this.logService.getLogsTec(req, levels.length ? levels : ['warn', 'error'], startDate, endDate);
             return logs;
         } catch (error) {
             throw new UnauthorizedException('Error en la búsqueda de logs.', error);

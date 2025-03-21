@@ -55,7 +55,7 @@ export class AdmissionService {
             const admissions = await this.datasource.query(query);
             return admissions;
         } catch (error) {
-            await this.logService.log('warn', `Error al obtener la lista de admisiones: ${error}`, 'AdmissionService', undefined, req.user.username);
+            await this.logService.log('error', `Error al obtener la lista de admisiones: ${error}`, 'AdmissionService', undefined, req.user.username);
             throw new InternalServerErrorException("No se pudo obtener la lista de admisiones.", error);
         }
     }
