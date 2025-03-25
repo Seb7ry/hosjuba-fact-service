@@ -1,24 +1,29 @@
-import { Controller, Get, Query, UnauthorizedException, UseGuards, Req, Request } from '@nestjs/common';
+import { Controller, Get, Query, UnauthorizedException, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { LogService } from 'src/service/log.service';
 
-/**
- * Controlador para gestionar las solicitudes relacionadas con los logs del sistema.
- * 
- * El controlador expone un endpoint `GET /log` para consultar los logs almacenados en la base de datos.
- * Solo los usuarios autenticados pueden acceder a este endpoint, gracias al uso del guard `JwtAuthGuard`.
- */
 @Controller('log')
 export class LogController {
     constructor(private readonly logService: LogService) { }
+
+    @Get('all')
+    @UseGuards(JwtAuthGuard)
+    async getLogsByLevels(@Query('level') level: string | string[]) {
+        const levels = Array.isArray(level) ? level : [level];
+
+        const validLevels = ['info', 'warn', 'error'];
+        const filteredLevels = levels.filter(lvl => validLevels.includes(lvl));
+
+        return this.logService.getLogsByLevels(filteredLevels as Array<'info' | 'warn' | 'error'>);
+    }
 
     @Get('filtrerTec')
     @UseGuards(JwtAuthGuard)
     async getLogsTec(
         @Request() req: Request,
-        @Query('level') level?: string | string[],  // Filtro por nivel
-        @Query('startDate') startDate?: string,  // Filtro por fecha de inicio
-        @Query('endDate') endDate?: string,  // Filtro por fecha de fin
+        @Query('level') level?: string | string[], 
+        @Query('startDate') startDate?: string,  
+        @Query('endDate') endDate?: string,  
     ) {
         try {
             const levels = Array.isArray(level) ? level : [level].filter(l => l);
@@ -27,6 +32,21 @@ export class LogController {
             return logs;
         } catch (error) {
             throw new UnauthorizedException('Error en la búsqueda de logs.', error);
+        }
+    }
+
+    @Get('filtrerHis')
+    @UseGuards(JwtAuthGuard)
+    async getHistory(
+        @Request() req: Request,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Query('user') user?: string
+    ) {
+        try {
+            return await this.logService.getLogsHistory(req, startDate, endDate, user);
+        } catch (error) {
+            throw new UnauthorizedException('Error al obtener el historial de logs.', error)
         }
     }
 }

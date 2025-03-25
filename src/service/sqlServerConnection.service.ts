@@ -51,7 +51,7 @@ export class SqlServerConnectionService implements OnModuleInit {
         try {
             await this.connectionPool.connect();
         } catch (error) {
-            await this.logService.log('warn', `⚠️ Error al conectar con la base de datos: ${error.message}`, 'SqlServerConnectionService');
+            await this.logService.logAndThrow('warn', `Error al conectar con la base de datos: ${error.message}`, 'SqlServerConnectionService');
         }  
     }
 
@@ -76,7 +76,7 @@ export class SqlServerConnectionService implements OnModuleInit {
         try {
             await this.connectionPool.close();
         } catch (error) {
-            await this.logService.log('error', `❌ Error al cerrar la conexión con la base de datos: ${error.message}`, 'SqlServerConnectionService');
+            await this.logService.logAndThrow('error', `Error al cerrar la conexión con la base de datos: ${error.message}`, 'SqlServerConnectionService');
         }
     }
 }

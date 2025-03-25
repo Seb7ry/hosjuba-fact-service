@@ -68,6 +68,20 @@ import { start } from "repl";
             }
         }
 
+
+        async getLogsByLevels(levels: Array<'info' | 'warn' | 'error'>) {
+            try {
+                const query = { level: { $in: levels } };                
+                return await this.logModel.find(query)
+                    .sort({ timestamp: -1 })
+                    .exec();
+            } catch (error) {
+                this.logger.error(`Error al obtener logs por niveles (${levels}): ${error.message}`);
+                throw new UnauthorizedException(`No se pudieron obtener los logs para los niveles especificados`);
+            }
+        }        
+        
+
         async getLogsTec(req: Request, level: string[] = ['warn', 'error'], startDate?: string, endDate?: string) {            
             let message = 'Filtro(s): ';
 
@@ -95,11 +109,57 @@ import { start } from "repl";
             }
         
             try {
-                await this.log('info', `Buscando logs mediante filtro. ${message}`, 'LogService', undefined, req.user.username)
+                await this.log('info', `Buscando registros mediante filtro. ${message}`, 'Registros', undefined, req.user.username)
                 return await this.logModel.find(query).sort({ timestamp: -1 });
             } catch (error) {
-                this.logger.error(`Error al obtener los logs: ${error.message}`);
+                this.logger.error(`Error al obtener los registros: ${error.message}`);
                 throw new UnauthorizedException('No se pudieron obtener los logs.');
+            }
+        }
+
+        async getLogsHistory(req: Request, startDate?: string, endDate?: string, user?: string) {
+            let message = 'Filtro(s): nivel: info';
+            
+            const query: any = {
+                level: 'info'
+            };
+
+            if (user) {
+                query.user = user;
+                message += ` user: ${user}`;
+            }
+
+            if (startDate) {
+                message += ` fechaInicial: ${startDate}`;
+                const start = new Date(startDate);
+                start.setUTCHours(0, 0, 0, 0);
+
+                if (endDate) {
+                    message += ` fechaFinal: ${endDate}`;
+                    const end = new Date(endDate);
+                    end.setUTCHours(23, 59, 59, 999);
+                    query.timestamp = { 
+                        $gte: start.toISOString(), 
+                        $lte: end.toISOString() 
+                    };
+                } else {
+                    const endOfDay = new Date(start);
+                    endOfDay.setUTCHours(23, 59, 59, 999);
+                    query.timestamp = { 
+                        $gte: start.toISOString(), 
+                        $lte: endOfDay.toISOString() 
+                    };
+                }
+            }
+
+            try {
+                await this.log('info', `Buscando historial mediante filtro. ${message}`, 'Historial', undefined, req.user.username)
+                return await this.logModel.find(query)
+                    .sort({ timestamp: -1 })
+                    .exec();
+            } catch (error) {
+                this.logger.error(`Error al obtener el historial: ${error.message}`);
+                throw new UnauthorizedException('No se pudieron obtener los logs de información');
             }
         }
         

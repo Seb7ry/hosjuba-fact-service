@@ -178,7 +178,7 @@ export class AdmissionService {
                 request.input('typeAdmission', typeAdmission);
             }
 
-            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa.a ${mesage}.`, 'AdmissionService', undefined, req.user.username);
+            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa.a ${mesage}.`, 'Admisiones', undefined, req.user.username);
             const result = await request.query(query);
 
             if (result.recordset.length === 0) {
@@ -267,7 +267,7 @@ export class AdmissionService {
         });
     
         try {
-            await this.logService.log('info', `Guardando admisión con consecutivo ${admission.consecutiveAdmission} y documento ${admission.documentPatient}.`, 'AdmissionService', undefined, req.user.username);
+            await this.logService.log('info', `Guardando admisión con consecutivo ${admission.consecutiveAdmission} y documento ${admission.documentPatient}.`, 'Admisiones', undefined, req.user.username);
             await admission.save();
             return admission;
         } catch (error) {
@@ -355,7 +355,7 @@ export class AdmissionService {
                 query['typeAdmission'] = typeAdmission;
             }
     
-            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa. ${mesage}.`, 'AdmissionService', undefined, req.user.username);
+            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa. ${mesage}.`, 'Comprobantes', undefined, req.user.username);
             const filteredAdmissions = await this.admissionModel.find(query).lean();
             return filteredAdmissions;
         } catch (error) {

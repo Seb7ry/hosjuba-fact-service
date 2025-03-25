@@ -58,7 +58,7 @@ export class AuthService {
         const { access_token } = await this.tokenService.generateAccessToken(user.username);
         const { refresh_token } = await this.tokenService.generateRefreshToken(user.username);
 
-        await this.logService.log('info', 'Inicio de sesión.', 'AuthService', undefined, username);
+        await this.logService.log('info', 'Inicio de sesión.', 'Login', undefined, username);
         await this.tokenService.saveUserGroup(user.username , user.grupoId);
         return { 
             access_token, 
@@ -81,7 +81,7 @@ export class AuthService {
     async logout(req: Request, username: string): Promise<string> {
         const result = await this.tokenService.deleteToken(username);
         if (result) {
-            await this.logService.log('info', `Cierre de sesión.`, 'AuthService', undefined, req.user.username);
+            await this.logService.log('info', `Cierre de sesión.`, 'Login', undefined, req.user.username);
             return `Sesión cerrada exitosamente para el usuario: ${username}`;
         } else {
             await this.logService.logAndThrow('warn', `No se encontró un refresh token para el usuario: ${username}`, 'AuthService');
