@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConnectionPool, Request } from 'mssql';
 import { InjectModel } from "@nestjs/mongoose";
 import { DataSource } from "typeorm";
-import { Model } from 'mongoose';
+import { LeanDocument, Model } from 'mongoose';
 
 import { Admission, AdmissionDocument } from "src/model/admission.model";
 
@@ -193,44 +193,52 @@ export class AdmissionService {
         }
     }
 
-    async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission>{
+    async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission> {
         const query = `
-        SELECT 
-            I.IngCsc AS consecutiveAdmission,
-            I.IngFecAdm AS dateAdmission,
-            I.MPCodP AS typeAdmission,
-            LTRIM(RTRIM(dbo.desencriptar(I.IngUsrReg))) AS userAdmission,
-            I.MPTDoc AS typeDocumentPatient,
-            LTRIM(RTRIM(I.MPCedu)) AS documentPatient,
-            CONCAT(
-                LTRIM(RTRIM(CB.MPNom1)), ' ', 
-                LTRIM(RTRIM(CB.MPNom2)), ' ', 
-                LTRIM(RTRIM(CB.MPApe1)), ' ', 
-                LTRIM(RTRIM(CB.MPApe2))
-            ) AS fullNamePatient,
-            LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-            LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
-            LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
-            LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
-            LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
-            LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
-        FROM INGRESOS I
-        LEFT JOIN CAPBAS CB
-            ON I.MPCedu = CB.MPCedu
-            AND I.MPTDoc = CB.MPTDoc
-        WHERE I.MPCedu = @documentPatient
-        AND I.IngCsc = @consecutiveAdmission`;
-
+            SELECT 
+                I.IngCsc AS consecutiveAdmission,
+                I.IngFecAdm AS dateAdmission,
+                I.MPCodP AS typeAdmission,
+                LTRIM(RTRIM(dbo.desencriptar(I.IngUsrReg))) AS userAdmission,
+                I.MPTDoc AS typeDocumentPatient,
+                LTRIM(RTRIM(I.MPCedu)) AS documentPatient,
+                CONCAT(
+                    LTRIM(RTRIM(CB.MPNom1)), ' ', 
+                    LTRIM(RTRIM(CB.MPNom2)), ' ', 
+                    LTRIM(RTRIM(CB.MPApe1)), ' ', 
+                    LTRIM(RTRIM(CB.MPApe2))
+                ) AS fullNamePatient,
+                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
+                LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
+                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
+                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
+                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
+                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
+            FROM INGRESOS I
+            LEFT JOIN CAPBAS CB
+                ON I.MPCedu = CB.MPCedu
+                AND I.MPTDoc = CB.MPTDoc
+            WHERE I.MPCedu = @documentPatient
+            AND I.IngCsc = @consecutiveAdmission`;
+    
         try {
-            const admission = await this.datasource.query(query);
-            return admission;
+            console.log('datos bucsados: ', documentPatient, ' ',consecutiveAdmission)
+            const connectionPool = this.sqlService.getConnectionPool();
+            connectionPool.config.requestTimeout = 60000;
+    
+            const request = new Request(connectionPool);
+            request.input('documentPatient', documentPatient);
+            request.input('consecutiveAdmission', consecutiveAdmission);
+    
+            const result = await request.query(query);
+            return result.recordset.length > 0 ? result.recordset[0] : null;
         } catch (error) {
             await this.logService.logAndThrow('error', `Error al obtener la admisión específica buscada: ${error.message}`, 'AdmissionService');
-            throw new InternalServerErrorException("No se pudo obtener la admision.", error);
+            throw new InternalServerErrorException("No se pudo obtener la admisión.", error);
         }
-    }
+    }    
 
-    async saveAdmission(req: Request, documentPatient: string, consecutiveAdmission: string, signatureBase64: string): Promise<Admission> {
+    async saveAdmission(req: Request, documentPatient: string, consecutiveAdmission: string, signature: string): Promise<Admission> {
         const admissionData = await this.getAdmissionByKeys(documentPatient, consecutiveAdmission);
     
         if (!admissionData) {
@@ -239,24 +247,12 @@ export class AdmissionService {
         }
     
         // Guardar la firma en MongoDB (GridFS) y obtener el ID
-        const signatureId = await this.signatureService.storeSignature(signatureBase64, `firma_${documentPatient}_${consecutiveAdmission}.png`);
+        const signatureId = await this.signatureService.storeSignature(signature, `firma_${documentPatient}_${consecutiveAdmission}.png`);
     
         // Crear la admisión con el ID de la firma almacenada
         const admission = new this.admissionModel({
-            consecutiveAdmission: admissionData.consecutiveAdmission,
-            dateAdmission: admissionData.dateAdmission,
-            typeAdmission: admissionData.typeAdmission,
-            userAdmission: admissionData.userAdmission,
-            typeDocumentPatient: admissionData.typeDocumentPatient,
-            namePatient: admissionData.namePatient,
-            documentPatient: admissionData.documentPatient,
-            phonePatient: admissionData.phonePatient,
-            typeDocumentCompanion: admissionData.typeDocumentCompanion || '',
-            documentCompanion: admissionData.documentCompanion || '',
-            nameCompanion: admissionData.nameCompanion || '',
-            phoneCompanion: admissionData.phoneCompanion || '',
-            relationCompanion: admissionData.relationCompanion || '',
-            digitalSignature: signatureId, // Guardamos el ID de la firma, no el Base64
+            ...admissionData.toObject(), // Copiar todos los datos existentes de la admisión
+            digitalSignature: signatureId // Agregar la firma digital
         });
     
         try {
@@ -267,7 +263,8 @@ export class AdmissionService {
             await this.logService.logAndThrow('error', `Error al guardar la admisión con la firma digital: ${error.message}`, 'AdmissionService');
             throw new InternalServerErrorException('Error al guardar la admisión con la firma digital', error);
         }
-    }    
+    }
+       
 
     async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
         try {
@@ -312,7 +309,7 @@ export class AdmissionService {
         endDateAdmission?: string,
         userAdmission?: string,
         typeAdmission?: string
-    ): Promise<Admission[]> {
+    ): Promise<LeanDocument<Admission>[]> {
         let mesage = 'Filtro(s): ';
         
          try {

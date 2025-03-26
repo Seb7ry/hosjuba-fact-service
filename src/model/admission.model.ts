@@ -15,10 +15,21 @@ interface Procedure {
 }
 
 /**
+ * Interfaz para la firma digital de la admisión.
+ */
+interface DigitalSignature {
+    signedBy: string; // Nombre de quien firma
+    signatureData: string; // Imagen de la firma (base64 o referencia a GridFS)
+}
+
+/**
  * Modelo de la Entidad Admisión en MongoDB.
  */
 @Schema({ timestamps: true }) // Agrega createdAt y updatedAt automáticamente
 export class Admission {
+    toObject(): any {
+        throw new Error("Method not implemented.");
+    }
     
     @Prop({ required: true })
     consecutiveAdmission: string;
@@ -39,7 +50,7 @@ export class Admission {
     documentPatient: string;
 
     @Prop({ required: true })
-    namePatient: string;
+    fullNamePatient: string;
 
     @Prop({ required: true })
     phonePatient: string;
@@ -62,8 +73,8 @@ export class Admission {
     /**
      * Firma digital asociada a la admisión.
      */
-    @Prop({ required: true, type: String })
-    digitalSignature: string;
+    @Prop({ required: true, type: { signedBy: String, signatureData: String } })
+    digitalSignature: DigitalSignature;
 
     /**
      * ID del documento PDF almacenado en GridFS.

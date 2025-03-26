@@ -1,12 +1,24 @@
 import { Module } from "@nestjs/common";
-import { SignatureService } from "src/service/signature.service";
+import { MongooseModule } from "@nestjs/mongoose";
+import { SignatureService } from "../service/signature.service";
+import { SignatureController } from "../controllers/signature.controller";
+import { LogModule } from "./log.module";
+import { JwtModule } from "@nestjs/jwt";
+import { SqlServerConnectionModule } from "./sqlServerConnection.module";
+import { Admission, AdmissionSchema } from "src/model/admission.model";
 
 @Module({
-    providers:[
-        SignatureService
-    ], 
-    exports:[
-        SignatureService
-    ]
+    imports: [
+        LogModule,
+        JwtModule.register({
+            secret: process.env.JWT_SECRET,
+            signOptions: { expiresIn: process.env.TIME_SESSION },
+        }),
+        SqlServerConnectionModule,
+        MongooseModule.forFeature([{ name: Admission.name, schema: AdmissionSchema }]),
+    ],
+    controllers: [SignatureController], 
+    providers: [SignatureService], 
+    exports: [SignatureService],
 })
-export class SignatureModule{}
+export class SignatureModule {}

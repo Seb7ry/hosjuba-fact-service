@@ -30,7 +30,7 @@ export class AdmissionController {
         const admission = await this.admissionService.getAdmissionByKeys(documentPatient, consecutiveAdmission);
 
         if (!admission) {
-            throw new UnauthorizedException("Admisión no encontrada.");
+            throw new InternalServerErrorException("Admisión no encontrada.");
         }
 
         return admission;
@@ -70,10 +70,10 @@ export class AdmissionController {
     @UseGuards(JwtAuthGuard)
     async saveAdmission(
         @Request() req: Request,
-        @Query('documentPatient') documentPatient: string,
-        @Query('consecutiveAdmission') consecutiveAdmission: string,
-        @Body('signature') signature: string): Promise<Admission>{
-            
+        @Query('documentPatient') documentPatient: string,  // 👈 Se espera en Query
+        @Query('consecutiveAdmission') consecutiveAdmission: string,  // 👈 Se espera en Query
+        @Body('signature') signature: string  // 👈 Solo la firma va en el Body
+    ): Promise<Admission> {
         try {
             return await this.admissionService.saveAdmission(req, documentPatient, consecutiveAdmission, signature);
         } catch (error) {
@@ -81,6 +81,7 @@ export class AdmissionController {
             throw new NotFoundException('No se pudo guardar la admisión con la firma digital.');
         }
     }
+
 
     @Post('signed')
     @UseGuards(JwtAuthGuard)
@@ -131,12 +132,14 @@ export class AdmissionController {
                 userAdmission, 
                 typeAdmission
             );
-            
+
             if (filteredAdmissions.length === 0) {
                 throw new NotFoundException('No se encontraron admisiones con los filtros proporcionados.');
             }
 
-            return filteredAdmissions;
+            // Convertimos los documentos a Admission[] si es necesario
+            return filteredAdmissions.map(admission => admission as Admission);
+            
         } catch (error) {
             throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
         }
