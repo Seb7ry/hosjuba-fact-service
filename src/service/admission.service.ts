@@ -230,40 +230,33 @@ export class AdmissionService {
         }
     }
 
-    async saveAdmission(req: Request, documentPatient: string, consecutiveAdmission: string, signature: string): Promise<Admission> {
+    async saveAdmission(req: Request, documentPatient: string, consecutiveAdmission: string, signatureBase64: string): Promise<Admission> {
         const admissionData = await this.getAdmissionByKeys(documentPatient, consecutiveAdmission);
     
         if (!admissionData) {
             await this.logService.logAndThrow('warn', '⚠️ No se encontró la admisión para el paciente.', 'AdmissionService');
             throw new InternalServerErrorException('Admisión no encontrada');
         }
-
-        const signatureN = await this.signatureService.generateSignature(signature);
     
-        admissionData.typeDocumentCompanion = admissionData.typeDocumentCompanion || '';
-        admissionData.documentCompanion = admissionData.documentCompanion || '';
-        admissionData.nameCompanion = admissionData.nameCompanion || '';
-        admissionData.phoneCompanion = admissionData.phoneCompanion || '';
-        admissionData.relationCompanion = admissionData.relationCompanion || '';
+        // Guardar la firma en MongoDB (GridFS) y obtener el ID
+        const signatureId = await this.signatureService.storeSignature(signatureBase64, `firma_${documentPatient}_${consecutiveAdmission}.png`);
     
+        // Crear la admisión con el ID de la firma almacenada
         const admission = new this.admissionModel({
             consecutiveAdmission: admissionData.consecutiveAdmission,
             dateAdmission: admissionData.dateAdmission,
             typeAdmission: admissionData.typeAdmission,
             userAdmission: admissionData.userAdmission,
-
             typeDocumentPatient: admissionData.typeDocumentPatient,
             namePatient: admissionData.namePatient,
             documentPatient: admissionData.documentPatient,
             phonePatient: admissionData.phonePatient,
-            
-            typeDocumentCompanion: admissionData.typeDocumentCompanion,
-            documentCompanion: admissionData.documentCompanion,
-            nameCompanion: admissionData.nameCompanion,
-            phoneCompanion: admissionData.phoneCompanion,
-            relationCompanion: admissionData.relationCompanion,
-            
-            digitalSignature: signatureN,
+            typeDocumentCompanion: admissionData.typeDocumentCompanion || '',
+            documentCompanion: admissionData.documentCompanion || '',
+            nameCompanion: admissionData.nameCompanion || '',
+            phoneCompanion: admissionData.phoneCompanion || '',
+            relationCompanion: admissionData.relationCompanion || '',
+            digitalSignature: signatureId, // Guardamos el ID de la firma, no el Base64
         });
     
         try {
@@ -274,7 +267,7 @@ export class AdmissionService {
             await this.logService.logAndThrow('error', `Error al guardar la admisión con la firma digital: ${error.message}`, 'AdmissionService');
             throw new InternalServerErrorException('Error al guardar la admisión con la firma digital', error);
         }
-    }
+    }    
 
     async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
         try {

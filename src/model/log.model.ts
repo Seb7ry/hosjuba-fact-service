@@ -27,3 +27,4 @@ export class Log {
 
 export const LogSchema = SchemaFactory.createForClass(Log);
 LogSchema.index({expiresAtLogT: 1}, {expireAfterSeconds: 0});
+LogSchema.index({ timestamp: -1, level: 1, user: 1 });
