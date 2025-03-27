@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException, InternalServerErrorException } from "@nestjs/common";
 import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import { Model, Connection, Types } from "mongoose";
 import { Readable } from "stream";
@@ -26,48 +26,43 @@ export class SignatureService {
             const uploadStream = this.bucket.openUploadStream(filename);
             readableStream.pipe(uploadStream);
 
-            uploadStream.on("finish", () => {
-                resolve(uploadStream.id.toString()); // Retorna el ID del archivo guardado
-            });
-
+            uploadStream.on("finish", () => resolve(uploadStream.id.toString()));
             uploadStream.on("error", (err) => {
-                reject(err);
+                console.error("❌ Error al guardar la firma en GridFS:", err);
+                reject(new InternalServerErrorException("Error al almacenar la firma digital."));
             });
         });
     }
 
     async getSignature(signatureId: string): Promise<Buffer> {
         return new Promise((resolve, reject) => {
-            const objectId = new Types.ObjectId(signatureId);
-            const readStream = this.bucket.openDownloadStream(objectId);
-            const chunks: Buffer[] = [];
+            try {
+                const objectId = new Types.ObjectId(signatureId);
+                const readStream = this.bucket.openDownloadStream(objectId);
+                const chunks: Buffer[] = [];
 
-            readStream.on("data", (chunk) => {
-                chunks.push(chunk);
-            });
-
-            readStream.on("end", () => {
-                resolve(Buffer.concat(chunks));
-            });
-
-            readStream.on("error", (err) => {
-                reject(err);
-            });
+                readStream.on("data", (chunk) => chunks.push(chunk));
+                readStream.on("end", () => resolve(Buffer.concat(chunks)));
+                readStream.on("error", (err) => {
+                    console.error("❌ Error al obtener la firma desde GridFS:", err);
+                    reject(new NotFoundException("Firma digital no encontrada."));
+                });
+            } catch (error) {
+                reject(new NotFoundException("ID de firma inválido."));
+            }
         });
     }
 
     async assignSignature(admissionId: string, signedBy: string, signatureBase64: string): Promise<AdmissionDocument> {
+        const admission = await this.admissionModel.findById(admissionId);
+        if (!admission) {
+            throw new NotFoundException("No se encontró la admisión para asignar la firma.");
+        }
+
         const signatureId = await this.storeSignature(signatureBase64, `signature_${admissionId}.png`);
-        
-        return this.admissionModel.findByIdAndUpdate(
-            admissionId,
-            {
-                digitalSignature: {
-                    signedBy,
-                    signatureData: signatureId,
-                },
-            },
-            { new: true }
-        );
+
+        admission.digitalSignature = { signedBy, signatureData: signatureId };
+
+        return admission.save();
     }
 }

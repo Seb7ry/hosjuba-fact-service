@@ -222,7 +222,6 @@ export class AdmissionService {
             AND I.IngCsc = @consecutiveAdmission`;
     
         try {
-            console.log('datos bucsados: ', documentPatient, ' ',consecutiveAdmission)
             const connectionPool = this.sqlService.getConnectionPool();
             connectionPool.config.requestTimeout = 60000;
     
@@ -238,7 +237,13 @@ export class AdmissionService {
         }
     }    
 
-    async saveAdmission(req: Request, documentPatient: string, consecutiveAdmission: string, signature: string): Promise<Admission> {
+    async saveAdmission(
+        req: Request,
+        documentPatient: string,
+        consecutiveAdmission: string,
+        signature: string,
+        signedBy: string // Recibido como parámetro
+    ): Promise<Admission> {
         const admissionData = await this.getAdmissionByKeys(documentPatient, consecutiveAdmission);
     
         if (!admissionData) {
@@ -246,17 +251,24 @@ export class AdmissionService {
             throw new InternalServerErrorException('Admisión no encontrada');
         }
     
-        // Guardar la firma en MongoDB (GridFS) y obtener el ID
-        const signatureId = await this.signatureService.storeSignature(signature, `firma_${documentPatient}_${consecutiveAdmission}.png`);
+        const signatureData = await this.signatureService.storeSignature(signature, `firma_${documentPatient}_${consecutiveAdmission}.png`);
     
-        // Crear la admisión con el ID de la firma almacenada
         const admission = new this.admissionModel({
-            ...admissionData.toObject(), // Copiar todos los datos existentes de la admisión
-            digitalSignature: signatureId // Agregar la firma digital
+            ...admissionData, // Ya es un objeto plano, no necesita .toObject()
+            digitalSignature: {
+                signedBy: signedBy,
+                signatureData: signatureData 
+            }
         });
     
         try {
-            await this.logService.log('info', `Guardando admisión con consecutivo ${admission.consecutiveAdmission} y documento ${admission.documentPatient}.`, 'Admisiones', undefined, req.user.username);
+            await this.logService.log(
+                'info', 
+                `Guardando admisión con consecutivo ${admission.consecutiveAdmission} y documento ${admission.documentPatient}.`, 
+                'Admisiones', 
+                undefined, 
+                req.user.username
+            );
             await admission.save();
             return admission;
         } catch (error) {
@@ -264,8 +276,7 @@ export class AdmissionService {
             throw new InternalServerErrorException('Error al guardar la admisión con la firma digital', error);
         }
     }
-       
-
+    
     async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
         try {
             if (!admissions || admissions.length === 0) {

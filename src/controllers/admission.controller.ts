@@ -70,15 +70,15 @@ export class AdmissionController {
     @UseGuards(JwtAuthGuard)
     async saveAdmission(
         @Request() req: Request,
-        @Query('documentPatient') documentPatient: string,  // 👈 Se espera en Query
-        @Query('consecutiveAdmission') consecutiveAdmission: string,  // 👈 Se espera en Query
-        @Body('signature') signature: string  // 👈 Solo la firma va en el Body
+        @Query('documentPatient') documentPatient: string,  
+        @Query('consecutiveAdmission') consecutiveAdmission: string,  
+        @Body('signature') signature: string,  
+        @Body('signedBy') signedBy: string 
     ): Promise<Admission> {
         try {
-            return await this.admissionService.saveAdmission(req, documentPatient, consecutiveAdmission, signature);
+            return await this.admissionService.saveAdmission(req, documentPatient, consecutiveAdmission, signature, signedBy);
         } catch (error) {
-            console.log(error)
-            throw new NotFoundException('No se pudo guardar la admisión con la firma digital.');
+            throw new NotFoundException('No se pudo guardar la admisión con la firma digital.', error);
         }
     }
 

@@ -1,6 +1,17 @@
-import { Controller, Post, Get, Body, Param, UseGuards, NotFoundException, InternalServerErrorException } from "@nestjs/common";
+import { 
+    Controller, 
+    Post, 
+    Get, 
+    Body, 
+    Param, 
+    UseGuards, 
+    NotFoundException, 
+    InternalServerErrorException, 
+    BadRequestException 
+} from "@nestjs/common";
 import { SignatureService } from "../service/signature.service";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
+import { Types } from "mongoose";
 
 @Controller("signatures")
 export class SignatureController {
@@ -10,10 +21,15 @@ export class SignatureController {
     @UseGuards(JwtAuthGuard)
     async uploadSignature(@Body() body: { signatureBase64: string; filename: string }) {
         try {
+            if (!body.signatureBase64 || !body.filename) {
+                throw new BadRequestException("La firma y el nombre de archivo son obligatorios.");
+            }
+
             const fileId = await this.signatureService.storeSignature(body.signatureBase64, body.filename);
-            return { message: "Firma guardada con éxito", fileId };
+            return { success: true, message: "Firma guardada con éxito", fileId };
         } catch (error) {
-            throw new InternalServerErrorException("Error al guardar la firma");
+            console.error("❌ Error en uploadSignature:", error);
+            throw new InternalServerErrorException("Error al guardar la firma.");
         }
     }
 
@@ -21,17 +37,18 @@ export class SignatureController {
     @UseGuards(JwtAuthGuard)
     async getSignature(@Param("id") id: string) {
         try {
-            const signatureBuffer = await this.signatureService.getSignature(id);
-            if (!signatureBuffer) {
-                throw new NotFoundException("Firma no encontrada");
+            if (!Types.ObjectId.isValid(id)) {
+                throw new BadRequestException("El ID de la firma no es válido.");
             }
 
-            return { signature: signatureBuffer.toString("base64") };
+            const signatureBuffer = await this.signatureService.getSignature(id);
+            return { success: true, signature: signatureBuffer.toString("base64") };
         } catch (error) {
-            if (error instanceof NotFoundException) {
+            console.error("❌ Error en getSignature:", error);
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
                 throw error;
             }
-            throw new InternalServerErrorException("Error al obtener la firma");
+            throw new InternalServerErrorException("Error al obtener la firma.");
         }
     }
 }
