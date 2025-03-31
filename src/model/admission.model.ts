@@ -82,13 +82,6 @@ export class Admission {
      */
     @Prop({ required: false, type: Types.ObjectId })
     documentFileId?: Types.ObjectId;
-
-    /**
-     * Lista de procedimientos médicos asociados a la admisión.
-     * Solo se incluyen si existe una factura.
-     */
-    @Prop({ required: false, type: [{ code: String, name: String }] })
-    procedures?: Procedure[];
 }
 
 export const AdmissionSchema = SchemaFactory.createForClass(Admission);

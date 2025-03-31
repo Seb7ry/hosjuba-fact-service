@@ -1,4 +1,4 @@
-import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post, Query, Req, Request, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Param, ParseIntPipe, Post, Query, Req, Request, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
@@ -143,5 +143,13 @@ export class AdmissionController {
         } catch (error) {
             throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
         }
+    }
+
+    @Get('signed/:documentPatient/:consecutiveAdmission')
+    async getSignedAdmission(
+        @Param('documentPatient') documentPatient: string,
+        @Param('consecutiveAdmission', ParseIntPipe) consecutiveAdmission: number
+    ): Promise<any | null> {
+        return this.admissionService.getSignedAdmissionKeys(documentPatient, consecutiveAdmission);
     }
 }

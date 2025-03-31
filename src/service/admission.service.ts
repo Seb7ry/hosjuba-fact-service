@@ -312,6 +312,27 @@ export class AdmissionService {
         }
     }
 
+    async getSignedAdmissionKeys(documentPatient: string, consecutiveAdmission: number): Promise<any | null> {
+        try {
+            if (!documentPatient || consecutiveAdmission === undefined) {
+                return null;
+            }
+    
+            const signedAdmission = await this.admissionModel.findOne(
+                {
+                    documentPatient,
+                    consecutiveAdmission,
+                    digitalSignature: { $ne: null }
+                }
+            ).lean();
+    
+            return signedAdmission;
+        } catch (error) {
+            await this.logService.logAndThrow('error', `Error al verificar admisión firmada. Error: ${error.message}`, 'AdmissionService');
+            throw new InternalServerErrorException("No se pudo verificar si la admisión tiene firma.", error);
+        }
+    }
+
     async getSignedAdmissionsFiltrer(
         req: Request,
         documentPatient?: string,

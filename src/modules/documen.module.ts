@@ -1,4 +1,3 @@
-import { AdmissionController } from 'src/controllers/admission.controller';
 import { Admission, AdmissionSchema } from 'src/model/admission.model';
 
 import { SqlServerConnectionModule } from './sqlServerConnection.module';
@@ -8,7 +7,10 @@ import { LogModule } from './log.module';
 import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 
+import { DocumentController } from 'src/controllers/document.controller';
+import { DocumentService } from 'src/service/document.service';
 import { AdmissionService } from 'src/service/admission.service';
+import { SignatureService } from 'src/service/signature.service';
 
 @Module({
     imports: [
@@ -22,10 +24,9 @@ import { AdmissionService } from 'src/service/admission.service';
         MongooseModule.forFeature([{ name: Admission.name, schema: AdmissionSchema }]),
     ], 
     controllers: [
-        AdmissionController
+        DocumentController
     ],
-    providers: [AdmissionService
+    providers: [DocumentService, AdmissionService, SignatureService
     ],
-    exports: [AdmissionService]
 })
-export class AdmissionsModule {}
+export class DocumentModule {}

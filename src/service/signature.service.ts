@@ -4,6 +4,8 @@ import { Model, Connection, Types } from "mongoose";
 import { Readable } from "stream";
 import { GridFSBucket } from "mongodb";
 import { Admission, AdmissionDocument } from "src/model/admission.model";
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 @Injectable()
 export class SignatureService {
