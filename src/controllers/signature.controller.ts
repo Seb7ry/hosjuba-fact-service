@@ -13,7 +13,7 @@ import { SignatureService } from "../service/signature.service";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Types } from "mongoose";
 
-@Controller("signatures")
+@Controller("signature")
 export class SignatureController {
     constructor(private readonly signatureService: SignatureService) {}
 

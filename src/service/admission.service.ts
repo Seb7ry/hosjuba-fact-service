@@ -276,6 +276,66 @@ export class AdmissionService {
             throw new InternalServerErrorException('Error al guardar la admisión con la firma digital', error);
         }
     }
+
+    async updateAdmission(
+        req: Request,
+        documentPatient: string,
+        consecutiveAdmission: string
+    ): Promise<Admission> {
+        // Obtener los datos actuales de la admisión desde la base de datos SQL Server
+        const admissionData = await this.getAdmissionByKeys(documentPatient, consecutiveAdmission);
+        console.log(admissionData);
+        if (!admissionData) {
+            await this.logService.logAndThrow('warn', '⚠️ No se encontró la admisión para el paciente.', 'AdmissionService');
+            throw new InternalServerErrorException('Admisión no encontrada');
+        }
+    
+        // Obtener los datos de la admisión actual en MongoDB
+        const currentAdmissionMongo = await this.admissionModel.findOne({ documentPatient, consecutiveAdmission });
+        
+        // Si la admisión no existe en MongoDB, se maneja el error
+        if (!currentAdmissionMongo) {
+            await this.logService.logAndThrow('warn', '⚠️ No se encontró la admisión en MongoDB.', 'AdmissionService');
+            throw new InternalServerErrorException('Admisión no encontrada en MongoDB');
+        }
+    
+        // Mantener la firma digital tal como está en MongoDB
+        const { digitalSignature } = currentAdmissionMongo.toObject();
+    
+        // Crear un objeto con los datos actualizados excluyendo la firma digital
+        const updatedAdmission = {
+            ...admissionData, // Datos traídos de SQL Server
+            digitalSignature, // Mantener la firma digital original
+        };
+    
+        try {
+            // Log de la actualización
+            await this.logService.log(
+                'info', 
+                `Actualizando admisión con consecutivo ${admissionData.consecutiveAdmission} y documento ${admissionData.documentPatient}.`, 
+                'Admisiones', 
+                undefined, 
+                req.user.username
+            );
+    
+            // Actualizar la admisión en MongoDB
+            const updatedAdmissionRecord = await this.admissionModel.findOneAndUpdate(
+                { documentPatient, consecutiveAdmission },
+                updatedAdmission, // Actualizamos con los nuevos datos, sin cambiar la firma digital
+                { new: true } // Devuelve el documento actualizado
+            );
+    
+            if (!updatedAdmissionRecord) {
+                await this.logService.logAndThrow('warn', '⚠️ No se pudo actualizar la admisión.', 'AdmissionService');
+                throw new InternalServerErrorException('No se pudo actualizar la admisión');
+            }
+    
+            return updatedAdmissionRecord;
+        } catch (error) {
+            await this.logService.logAndThrow('error', `Error al actualizar la admisión: ${error.message}`, 'AdmissionService');
+            throw new InternalServerErrorException('Error al actualizar la admisión', error);
+        }
+    }    
     
     async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
         try {
@@ -303,7 +363,9 @@ export class AdmissionService {
 
     async getSignedAdmissionsAll(): Promise<any[]>{
         try {
-            const allAdmissions = await this.admissionModel.find().lean();
+            const allAdmissions = await this.admissionModel.find()
+            .sort({createdAt: -1})
+            .lean();
             
             return allAdmissions;
         } catch (error) {

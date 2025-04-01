@@ -1,4 +1,4 @@
-import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Param, ParseIntPipe, Post, Query, Req, Request, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Param, ParseIntPipe, Post, Put, Query, Req, Request, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
@@ -144,12 +144,19 @@ export class AdmissionController {
             throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
         }
     }
-
-    @Get('signed/:documentPatient/:consecutiveAdmission')
-    async getSignedAdmission(
-        @Param('documentPatient') documentPatient: string,
-        @Param('consecutiveAdmission', ParseIntPipe) consecutiveAdmission: number
-    ): Promise<any | null> {
-        return this.admissionService.getSignedAdmissionKeys(documentPatient, consecutiveAdmission);
+    
+    @Put('updateSigned')
+    @UseGuards(JwtAuthGuard)
+    async updateAdmission(
+        @Request() req: Request,
+        @Query('documentPatient') documentPatient: string,
+        @Query('consecutiveAdmission') consecutiveAdmission: string
+    ): Promise<Admission> {
+        try {
+            // Llamamos al servicio para actualizar la admisión sin pasar los datos adicionales
+            return await this.admissionService.updateAdmission(req, documentPatient, consecutiveAdmission);
+        } catch (error) {
+            throw new NotFoundException('No se pudo actualizar la admisión.', error);
+        }
     }
 }
