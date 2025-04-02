@@ -1,32 +1,43 @@
+/**
+ * Representa un usuario administrativo en el sistema.
+ * Contiene información de autenticación y pertenencia a grupos.
+ */
 export class AdmUsr {
     /**
-     * Identificador único del usuario.
-     * - Este campo es una cadena de 10 caracteres.
-     * - Se almacena como un campo de tipo `String` en MongoDB.
+     * Nombre de usuario único (identificador principal)
+     * @pattern ^[a-zA-Z0-9]{10}$ - Debe contener exactamente 10 caracteres alfanuméricos
+     * @example "usr_5A9b42"
      */
     username: string;
 
     /**
-     * Descripción o nombre del usuario.
-     * - Se almacena como un campo de tipo `String`.
-     * - Se puede almacenar hasta 32 caracteres.
+     * Nombre completo o descriptivo del usuario
+     * @maxLength 32 - Longitud máxima permitida
+     * @example "María González López"
      */
     descripcion: string;
 
     /**
-     * Contraseña del usuario almacenada en la base de datos.
-     * - Este campo se debe almacenar como un `String`.
-     * - **Nota importante:** La contraseña debería ser cifrada.
+     * Credencial de acceso (debe almacenarse cifrada)
+     * @security - Nunca debería exponerse en respuestas API
+     * @format password
      */
     password: string;
 
     /**
-     * Identificador del grupo al que pertenece el usuario.
-     * - Este campo es una cadena de 16 caracteres.
-     * - Representa el grupo de usuarios a los que se asigna el usuario.
+     * Referencia al grupo de permisos asignado
+     * @pattern ^grp_[a-zA-Z0-9]{12}$ - Formato: 'grp_' + 12 caracteres alfanuméricos
+     * @example "grp_adm1nX9f4s2"
      */
     grupoId: string;
 
+    /**
+     * Crea una nueva instancia de usuario administrativo
+     * @param username - Identificador único (10 caracteres)
+     * @param descripcion - Nombre descriptivo (hasta 32 caracteres)
+     * @param password - Contraseña (debe cifrarse antes de persistir)
+     * @param grupoId - Identificador de grupo (16 caracteres)
+     */
     constructor(username: string, descripcion: string, password: string, grupoId: string) {
         this.username = username;
         this.descripcion = descripcion;

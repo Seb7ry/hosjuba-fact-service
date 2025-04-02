@@ -196,7 +196,7 @@ export class TokenService {
      * @returns `true` si el refresh token es válido, `false` si no lo es.
      */
     async validateRefreshToken(username: string, refreshToken: string): Promise<boolean> {
-        const tokenRecord = await this.tokenModel.findById(username).exec();
+        const tokenRecord = await this.tokenModel.findOne({username: username.trim()}).exec();
         if (!tokenRecord || !tokenRecord.refreshToken) {
             await this.logService.log('warn', `No se encontró refresh token para usuario: ${username}`, 'TokenService');
             return false;
@@ -223,7 +223,7 @@ export class TokenService {
      * @returns `true` si el access token es válido, `false` si no lo es.
      */
     async validateAccessToken(username: string, accessToken: string): Promise<boolean> {
-        const tokenRecord = await this.tokenModel.findById(username).exec();
+        const tokenRecord = await this.tokenModel.findOne({username: username.trim() }).exec();
         if (!tokenRecord || !tokenRecord.accessToken) {
             await this.logService.log('warn', `No se encontró access token para usuario: ${username}`, 'TokenService');
             return false;

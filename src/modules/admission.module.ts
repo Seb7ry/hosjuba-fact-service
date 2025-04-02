@@ -6,14 +6,17 @@ import { SignatureModule } from './signature.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { LogModule } from './log.module';
 import { JwtModule } from '@nestjs/jwt';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 
 import { AdmissionService } from 'src/service/admission.service';
+import { TokenModule } from './token.module';
+import { TokenService } from 'src/service/token.service';
 
 @Module({
     imports: [
         LogModule,
         SignatureModule,
+        TokenModule,
         JwtModule.register({
             secret: process.env.JWT_SECRET,
             signOptions: { expiresIn: process.env.TIME_SESSION },
@@ -28,4 +31,4 @@ import { AdmissionService } from 'src/service/admission.service';
     ],
     exports: [AdmissionService]
 })
-export class AdmissionsModule {}
+export class AdmissionsModule { }

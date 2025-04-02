@@ -11,11 +11,16 @@ import { DocumentController } from 'src/controllers/document.controller';
 import { DocumentService } from 'src/service/document.service';
 import { AdmissionService } from 'src/service/admission.service';
 import { SignatureService } from 'src/service/signature.service';
+import { TokenModule } from './token.module';
+import { TokenService } from 'src/service/token.service';
+import { AdmUsrModule } from './admusr.module';
 
 @Module({
     imports: [
         LogModule,
         SignatureModule,
+        AdmUsrModule,
+        TokenModule,
         JwtModule.register({
             secret: process.env.JWT_SECRET,
             signOptions: { expiresIn: process.env.TIME_SESSION },
@@ -26,7 +31,10 @@ import { SignatureService } from 'src/service/signature.service';
     controllers: [
         DocumentController
     ],
-    providers: [DocumentService, AdmissionService, SignatureService
+    providers: [DocumentService, AdmissionService, SignatureService, TokenService
     ],
+    exports: [
+        TokenService
+    ]
 })
 export class DocumentModule {}

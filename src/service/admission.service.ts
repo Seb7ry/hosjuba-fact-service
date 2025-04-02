@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
-import { ConnectionPool, Request } from 'mssql';
+import { Request } from 'mssql';
 import { InjectModel } from "@nestjs/mongoose";
 import { DataSource } from "typeorm";
 import { LeanDocument, Model } from 'mongoose';
@@ -12,6 +12,7 @@ import { LogService } from "./log.service";
 
 import * as dotenv from 'dotenv';
 import { start } from "repl";
+import { TokenService } from "./token.service";
 dotenv.config(); 
 
 @Injectable()

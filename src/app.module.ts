@@ -16,7 +16,9 @@ import { AdmissionsModule } from './modules/admission.module';
 import { SignatureModule } from './modules/signature.module';
 import { SqlServerConnectionModule } from './modules/sqlServerConnection.module';
 import { SqlServerConnectionService } from './service/sqlServerConnection.service';
-import { DocumentModule } from './modules/documen.module';
+import { DocumentModule } from './modules/document.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { RefreshTokenInterceptor } from './interceptor/refreshToken.interceptor';
 dotenv.config();
 
 /**
@@ -32,10 +34,9 @@ dotenv.config();
     AuthModule,
     TokenModule,
     AdmUsrModule,
-    SignatureModule,
-    AdmissionsModule,
     DocumentModule,
     SignatureModule,
+    AdmissionsModule,
     SqlServerConnectionModule,
     MongooseModule.forRoot(`mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}` +
                           `@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=${process.env.MONGO_AUTH_SOURCE}`),
@@ -61,7 +62,11 @@ dotenv.config();
     AppController, 
   ],
   providers: [
-    AppService
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RefreshTokenInterceptor
+    }
   ],
 })
 export class AppModule implements OnModuleInit {

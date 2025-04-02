@@ -2,15 +2,19 @@ import { Body, Controller, Get, InternalServerErrorException, NotFoundException,
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
+import { TokenService } from "src/service/token.service";
 
 @Controller('admission')
 export class AdmissionController {
     
-    constructor(private readonly admissionService: AdmissionService) { }
+    constructor(
+        private readonly admissionService: AdmissionService,
+        private readonly tokenService: TokenService
+    ) { }
 
     @Get()
     @UseGuards(JwtAuthGuard)
-    async getAllAdmissions(@Request() req: Request): Promise<Admission[]>{
+    async getAllAdmissions(@Request() req: any): Promise<Admission[]>{
         try{
             return await this.admissionService.getAllAdmissions(req);
         }catch(error){
