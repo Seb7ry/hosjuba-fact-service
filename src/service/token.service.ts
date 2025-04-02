@@ -1,7 +1,7 @@
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { Token, TokenDocument } from "src/model/token.model"; 
 import { AdmUsrService } from "./admusr.service";
 import { InjectModel } from "@nestjs/mongoose";
-import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { LogService } from "./log.service";
 import { JwtService } from "@nestjs/jwt";
 import { Model } from "mongoose";
@@ -186,7 +186,6 @@ export class TokenService {
             { group: groupId }, 
             { upsert: true }           
         );
-    
     }
 
     /**

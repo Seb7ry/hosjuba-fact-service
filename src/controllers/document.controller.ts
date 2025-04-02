@@ -1,16 +1,39 @@
-import { BadRequestException, Controller, Get, Param, Query, Res, UseGuards, Request, NotFoundException } from '@nestjs/common';
-import {  Response } from 'express';
+import { BadRequestException, Controller, Get, Query, Res, UseGuards, Request, NotFoundException } from '@nestjs/common';
 import { DocumentService } from '../service/document.service';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import { Response } from 'express';
 
+/**
+ * Controlador para manejo de documentos y facturas
+ * 
+ * Provee endpoints para:
+ * - Generación de PDFs de admisión
+ * - Consulta de facturas
+ * - Detalle de procedimientos
+ * 
+ * Todas las rutas están protegidas por JWT
+ */
 @Controller('document')
 export class DocumentController {
   constructor(private readonly documentService: DocumentService) {}
 
+  /**
+   * Endpoint principal para generación de documentos PDF
+   * 
+   * @param res - Objeto Response de Express para manejar la descarga
+   * @param req - Objeto Request con información del usuario autenticado
+   * @param documentPatient - Documento de identidad del paciente (requerido)
+   * @param consecutiveAdmission - Número consecutivo de admisión (requerido)
+   * @param numberFac - Número de factura (opcional)
+   * 
+   * @returns PDF generado como descarga directa
+   * @throws BadRequestException si faltan parámetros requeridos
+   */
   @Get()
   @UseGuards(JwtAuthGuard)
   async generatePdf(
-    @Res() req: Response,
+    @Res() res: Response,
+    @Request() req: Request,
     @Query('documentPatient') documentPatient: string,
     @Query('consecutiveAdmission') consecutiveAdmission: number,
     @Query('numberFac') numberFac?: string,
@@ -20,12 +43,22 @@ export class DocumentController {
     }
 
     if(numberFac){
-      await this.documentService.generatePdfFac(req, documentPatient, consecutiveAdmission, numberFac)
+      await this.documentService.generatePdfFac(res, req, documentPatient, consecutiveAdmission, numberFac)
     } else {    
-      await this.documentService.generatePdf(req, documentPatient, consecutiveAdmission);
+      await this.documentService.generatePdf(res, req, documentPatient, consecutiveAdmission);
     }
   }
 
+  /**
+   * Obtiene el listado de facturas asociadas a una admisión
+   * 
+   * @param documentPatient - Documento del paciente (requerido)
+   * @param consecutiveAdmission - Consecutivo de admisión (requerido)
+   * @param req - Request con información de usuario
+   * 
+   * @returns Array con listado de facturas
+   * @throws NotFoundException si no se encuentran facturas
+   */
   @Get('allFact')
   @UseGuards(JwtAuthGuard)
   async getFact(
@@ -39,6 +72,17 @@ export class DocumentController {
       }
     }
 
+  /**
+   * Obtiene el detalle de procedimientos de una factura específica
+   * 
+   * @param documentPatient - Documento del paciente (requerido)
+   * @param consecutiveAdmission - Consecutivo de admisión (requerido)
+   * @param numberFac - Número de factura (requerido)
+   * @param req - Request con información de usuario
+   * 
+   * @returns Array con detalle de procedimientos
+   * @throws NotFoundException si no se encuentra la factura
+   */
   @Get('factDetails')
   @UseGuards(JwtAuthGuard)
   async getFactDetails(

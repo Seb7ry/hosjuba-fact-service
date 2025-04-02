@@ -1,5 +1,4 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ConnectionPool, Request } from 'mssql';
 import { AdmUsr } from 'src/model/admusr.model';
 import { LogService } from './log.service';
 import { DataSource } from 'typeorm';

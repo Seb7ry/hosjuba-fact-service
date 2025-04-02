@@ -3,6 +3,17 @@ import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { AuthService } from "src/service/auth.service";
 import { LoginDto } from "src/dto/login.dto";
 
+/**
+ * Controlador para manejar operaciones de autenticación
+ * 
+ * Proporciona endpoints para:
+ * - Inicio de sesión (login)
+ * - Cierre de sesión (logout)
+ * 
+ * Rutas:
+ * - POST /auth/login
+ * - POST /auth/logout (protegido por JWT)
+ */
 @Controller('auth')
 export class AuthController {
     constructor(

@@ -15,7 +15,7 @@ import { JwtService } from "@nestjs/jwt";
 @Injectable()
 export class AuthService {
     
-    /**
+    /*{}
      * Constructor del servicio `AuthService`.
      * 
      * @param tokenService - Servicio encargado de la generación y validación de tokens.

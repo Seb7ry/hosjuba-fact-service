@@ -1,17 +1,31 @@
-import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Param, ParseIntPipe, Post, Put, Query, Req, Request, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post, Put, Query, Request, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
-import { TokenService } from "src/service/token.service";
 
+/**
+ * Controlador para gestión de admisiones médicas
+ * 
+ * Proporciona endpoints para:
+ * - Consulta de admisiones (generales, filtradas y firmadas)
+ * - Registro y actualización de admisiones
+ * - Manejo de firmas digitales
+ * 
+ * Todas las rutas requieren autenticación JWT
+ */
 @Controller('admission')
 export class AdmissionController {
     
     constructor(
-        private readonly admissionService: AdmissionService,
-        private readonly tokenService: TokenService
+        private readonly admissionService: AdmissionService
     ) { }
 
+    /**
+     * Obtiene todas las admisiones del sistema
+     * @param req Objeto Request con información del usuario
+     * @returns Listado completo de admisiones
+     * @throws NotFoundException Si no se encuentran admisiones
+     */
     @Get()
     @UseGuards(JwtAuthGuard)
     async getAllAdmissions(@Request() req: any): Promise<Admission[]>{
@@ -22,6 +36,14 @@ export class AdmissionController {
         }
     }
 
+    /**
+     * Busca una admisión específica por documento y consecutivo
+     * @param documentPatient Documento del paciente (requerido)
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @returns Admisión encontrada
+     * @throws UnauthorizedException Si falta documento
+     * @throws InternalServerErrorException Si no se encuentra
+     */
     @Get('id')
     @UseGuards(JwtAuthGuard)
     async getAdmissionByKeys(
@@ -40,6 +62,18 @@ export class AdmissionController {
         return admission;
     }
 
+    /**
+     * Filtra admisiones con múltiples criterios
+     * @param req Objeto Request
+     * @param documentPatient Documento del paciente (requerido)
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @param startDateAdmission Fecha inicial (opcional)
+     * @param endDateAdmission Fecha final (opcional)
+     * @param userAdmission Usuario que registró (opcional)
+     * @param typeAdmission Tipo de admisión (opcional)
+     * @returns Listado de admisiones filtradas
+     * @throws UnauthorizedException Si faltan parámetros requeridos
+     */
     @Get('filtrer')
     @UseGuards(JwtAuthGuard)
     async getAdmissionFiltrer(
@@ -70,6 +104,16 @@ export class AdmissionController {
         return admission;
     }
     
+    /**
+     * Guarda una admisión con firma digital
+     * @param req Objeto Request
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @param signature Firma digital en base64
+     * @param signedBy Tipo de firmante (paciente/acompañante)
+     * @returns Admisión guardada
+     * @throws NotFoundException Si falla el guardado
+     */
     @Post('save')
     @UseGuards(JwtAuthGuard)
     async saveAdmission(
@@ -86,7 +130,12 @@ export class AdmissionController {
         }
     }
 
-
+    /**
+     * Obtiene admisiones firmadas específicas
+     * @param admissions Array de objetos con documento y consecutivo
+     * @returns Listado de admisiones firmadas
+     * @throws NotFoundException Si la lista es inválida o vacía
+     */
     @Post('signed')
     @UseGuards(JwtAuthGuard)
     async getSignedAdmissions(
@@ -104,6 +153,11 @@ export class AdmissionController {
         }
     }
 
+    /**
+     * Obtiene todas las admisiones firmadas
+     * @returns Listado completo de admisiones firmadas
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     @Get('signedAll')
     @UseGuards(JwtAuthGuard)
     async getSignedAdmissionsAll(){
@@ -115,6 +169,19 @@ export class AdmissionController {
         }
     }
     
+    /**
+     * Filtra admisiones firmadas con múltiples criterios
+     * @param req Objeto Request
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @param startDateAdmission Fecha inicial (opcional)
+     * @param endDateAdmission Fecha final (opcional)
+     * @param userAdmission Usuario que registró (opcional)
+     * @param typeAdmission Tipo de admisión (opcional)
+     * @returns Listado de admisiones firmadas filtradas
+     * @throws NotFoundException Si no se encuentran resultados
+     * @throws InternalServerErrorException Si falla el filtrado
+     */
     @Get('signedFiltrer')
     @UseGuards(JwtAuthGuard)
     async getSignedAdmissionsFiltrer(
@@ -141,7 +208,6 @@ export class AdmissionController {
                 throw new NotFoundException('No se encontraron admisiones con los filtros proporcionados.');
             }
 
-            // Convertimos los documentos a Admission[] si es necesario
             return filteredAdmissions.map(admission => admission as Admission);
             
         } catch (error) {
@@ -149,6 +215,14 @@ export class AdmissionController {
         }
     }
     
+    /**
+     * Actualiza una admisión existente
+     * @param req Objeto Request
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @returns Admisión actualizada
+     * @throws NotFoundException Si no se puede actualizar
+     */
     @Put('updateSigned')
     @UseGuards(JwtAuthGuard)
     async updateAdmission(
@@ -157,7 +231,6 @@ export class AdmissionController {
         @Query('consecutiveAdmission') consecutiveAdmission: string
     ): Promise<Admission> {
         try {
-            // Llamamos al servicio para actualizar la admisión sin pasar los datos adicionales
             return await this.admissionService.updateAdmission(req, documentPatient, consecutiveAdmission);
         } catch (error) {
             throw new NotFoundException('No se pudo actualizar la admisión.', error);

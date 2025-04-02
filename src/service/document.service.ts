@@ -1,31 +1,47 @@
+// src/document/document.service.ts
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import * as PDFDocument from 'pdfkit';
-import { ConnectionPool, Request } from 'mssql';
 import { Response } from 'express';
+import { Request } from 'mssql';
+
+import { SqlServerConnectionService } from './sqlServerConnection.service';
 import { AdmissionService } from './admission.service';
 import { SignatureService } from './signature.service';
-import { async } from 'rxjs';
-import { DataSource } from 'typeorm';
 import { LogService } from './log.service';
-import { SqlServerConnectionService } from './sqlServerConnection.service';
-import { start } from 'repl';
 
+/**
+ * Servicio para generación de documentos PDF y manejo de datos relacionados
+ * 
+ * Proporciona funcionalidades para:
+ * - Generar comprobantes de admisión en PDF
+ * - Consultar información de facturas
+ * - Mapear valores de enumeraciones
+ */
 @Injectable()
 export class DocumentService {
   constructor(
     private readonly admissionService: AdmissionService,
     private readonly signatureService: SignatureService,
     private readonly sqlServerConnectionService: SqlServerConnectionService,
-    private readonly datasource: DataSource,
     private readonly logService: LogService
   ) {}
 
+  /**
+   * Mapea códigos de tipo de admisión a su descripción correspondiente
+   * @param typeAdmission - Código numérico del tipo de admisión
+   * @returns Descripción textual del tipo de admisión
+   */
   async mapService(typeAdmission: string): Promise<string> {
     if(typeAdmission === '1') return "Urgencias"
     if(typeAdmission === '99') return "Consulta Externa"
     return "Hospitalización"
   }
 
+  /**
+   * Mapea códigos de relación de acompañante a su descripción
+   * @param relationCompanion - Código alfabético de relación
+   * @returns Descripción textual de la relación
+   */
   async mapRelation(relationCompanion: string): Promise<string> {
     if(relationCompanion === 'H') return "Hijo(a)"
     if(relationCompanion === 'F') return "Familiar"
@@ -33,7 +49,28 @@ export class DocumentService {
     if(relationCompanion === 'A') return "Amigo(a)"
     if(relationCompanion === 'O') return "Otro"
   }
+  /**
+   * Método auxiliar para corregir el formato de las fechas obtenidas
+   * de la base de datos MongoDB.
+   * @param date Fecha a modificar el formato
+   * @returns Fecha con el formator adecuadl Ej: xx/xx/xxxx
+   */
+  private formatDate(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
 
+  /**
+   * Obtiene lista de facturas asociadas a una admisión
+   * @param req - Objeto Request de la solicitud HTTP
+   * @param documentPatient - Documento de identidad del paciente
+   * @param consecutiveAdmission - Consecutivo de la admisión
+   * @returns Array con registros de facturas
+   * @throws InternalServerErrorException Si falla la consulta a la base de datos
+   */
   async getFact(req: Request, documentPatient: string, consecutiveAdmission: string): Promise<any[]> {
     const pool = await this.sqlServerConnectionService.getConnectionPool();
     const query = `
@@ -53,11 +90,20 @@ export class DocumentService {
         .query(query);
         return result.recordset;
     } catch(error){
-        await this.logService.log('error',`Error al obtener la lista de facturas de la admisión [documento: ${documentPatient} y consecutivo: ${consecutiveAdmission}] : ${error}`, 'DocumentService', undefined, req.user.username);
+        await this.logService.logAndThrow('error',`Error al obtener la lista de facturas de la admisión [documento: ${documentPatient} y consecutivo: ${consecutiveAdmission}] : ${error}`, 'DocumentService');
         throw new InternalServerErrorException("No se pudo obtener la lista de admisiones.", error);
     }
   }
 
+  /**
+   * Obtiene detalles de procedimientos de una factura específica
+   * @param req - Objeto Request de la solicitud HTTP
+   * @param documentPatient - Documento de identidad del paciente
+   * @param consecutiveAdmission - Consecutivo de la admisión
+   * @param numberFac - Número de factura a consultar
+   * @returns Array con detalles de procedimientos
+   * @throws InternalServerErrorException Si falla la consulta a la base de datos
+   */
   async getFactDetails(req: Request, documentPatient: string, consecutiveAdmission: string, numberFac: string): Promise<any[]> {
       const pool = await this.sqlServerConnectionService.getConnectionPool();
       const query = `
@@ -84,20 +130,24 @@ export class DocumentService {
 
           return result.recordset;
       } catch (error) {
-          await this.logService.log(
+          await this.logService.logAndThrow(
               'error',
               `Error al obtener detalles de la factura [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
-              'DocumentService',
-              undefined,
-              req.user.username
+              'DocumentService'
           );
           throw new InternalServerErrorException("No se pudieron obtener los detalles de la factura.", error);
       }
   }
 
-  async generatePdf(res: Response, documentPatient: string, consecutiveAdmission: number) {
+  /**
+   * Genera un PDF con el comprobante de admisión básico
+   * @param res - Objeto Response de Express
+   * @param documentPatient - Documento de identidad del paciente
+   * @param consecutiveAdmission - Consecutivo de la admisión
+   * @throws InternalServerErrorException Si falla la generación del PDF
+   */
+  async generatePdf(res: Response, req: Request, documentPatient: string, consecutiveAdmission: number) {
     try {
-      // 🔹 Buscar admisión por documento y consecutivo
       const admission = await this.admissionService.getSignedAdmissionKeys(documentPatient, consecutiveAdmission);
       if (!admission) {
         throw new InternalServerErrorException('No se encontró una admisión con firma digital.');
@@ -108,17 +158,15 @@ export class DocumentService {
       res.setHeader('Content-Type', 'application/pdf');
       doc.pipe(res);
 
-       // 📌 AGREGAR LOGO (parte superior izquierda)
-      const logoPath = './src/assets/logo.png'; // Cambia esto por la ruta correcta
+      const logoPath = './src/assets/logo.png'; 
       try {
-        doc.image(logoPath, 70, 90, { width: 60 }); // Ajusta posición (x,y) y tamaño según necesites
+        doc.image(logoPath, 70, 90, { width: 60 });
         doc.moveDown(2);
       } catch (error) {
-        console.error('❌ Error cargando el logo:', error.message);
-        // Continuar sin logo si hay error
+        await this.logService.logAndThrow('error', `Error al cargar el logo: ${error.message}`, 'DocumentService');
+        throw new InternalServerErrorException(`Error al cargar el logo: ${error.message}`);
       }
       
-      // 📌 ENCABEZADO
       doc.fontSize(16).text(process.env.NOMBRE_HOSPITAL, { align: 'center' });
       doc.fontSize(12).text(process.env.NIT_HOSPITAL, { align: 'center' });
       doc.fontSize(14).text(process.env.NOMBRE_DOCUMENTO_HOSPITAL, { align: 'center'});
@@ -127,7 +175,6 @@ export class DocumentService {
       doc.fontSize(10).text(process.env.DESCRIPCION_DOCUMENTO_HOSPITAL, { align: 'center', italic: true });
       doc.moveDown(2);
       
-      // 📌 INFORMACIÓN DEL PACIENTE
       doc.fontSize(12).text(`Fecha: ${new Date().toLocaleDateString()}                                                                         Nº de Factura: N/A`);
       doc.moveDown();
       doc.fontSize(12).text(`Nombre Paciente: ${admission.fullNamePatient}`);
@@ -145,22 +192,18 @@ export class DocumentService {
       }
       doc.moveDown();
       
-      // 📌 TEXTO INFORMATIVO
       doc.fontSize(12).text(process.env.NORMATIVA_DOCUMENTO_HOSPITAL, { align: 'justify' }
       );
       doc.moveDown(2);
       
-      // 📌 FIRMAS (Paciente y Acompañante)
       const startX = doc.x;
       const lineY = doc.y + 40;
       
-      // Línea para la firma del paciente
       doc.moveTo(startX, lineY + 30).lineTo(startX + 180, lineY + 30).stroke();
       doc.text('PACIENTE', startX, lineY + 35);
       doc.text(`Nº Documento: ${admission.documentPatient}`, startX, lineY + 50);
       doc.text(`Teléfono: ${admission.phonePatient}`, startX, lineY + 65);
       
-      // Línea para la firma del acompañante
       const companionX = startX + 280;
       doc.moveTo(companionX - 40, lineY + 30).lineTo(companionX + 180, lineY + 30).stroke();
       doc.text('ACUDIENTE', companionX - 40, lineY + 35);
@@ -169,7 +212,6 @@ export class DocumentService {
       doc.text(`Parentesco: ${await this.mapRelation(admission.relationCompanion) || 'N/A'}`, companionX - 40, lineY + 80);
       doc.text(`Teléfono: ${admission.phoneCompanion || 'N/A'}`, companionX - 40, lineY + 95);
       
-      // 📌 OBTENER FIRMA Y AÑADIRLA AL PDF
       if (admission.digitalSignature && admission.digitalSignature.signatureData) {
         try {
           const signatureBuffer = await this.signatureService.getSignature(admission.digitalSignature.signatureData);
@@ -182,19 +224,35 @@ export class DocumentService {
             doc.image(imagePath, companionX - 35, lineY - 62, { width: 200, height: 100 });
           }
         } catch (error) {
-          console.error('❌ Error obteniendo la firma:', error.message);
+          await this.logService.logAndThrow('error', `Error al cargar la firma: ${error.message}`, 'DocumentService');
+          throw new InternalServerErrorException(`Error cargando la firma: ${error.message}`);
         }
       }
+
+      await this.logService.log(
+        'info', 
+        `Se ha generado/descargado un comprobante para el paciente ${admission.fullNamePatient} con admisión no. ${admission.consecutiveAdmission} del día ${this.formatDate(admission.dateAdmission)}`, 
+        'DocumentService', 
+        undefined, 
+        req.user.username);
       
       doc.end();
     } catch (error) {
+      await this.logService.logAndThrow('error', `Error al generar el PDF: ${error.message}`, 'DocumentService');
       throw new InternalServerErrorException(`Error generando PDF: ${error.message}`);
     }
   }
 
-  async generatePdfFac(res: Response, documentPatient: string, consecutiveAdmission: number, numberFac?: string) {
+  /**
+   * Genera un PDF con el comprobante de admisión incluyendo detalles de factura
+   * @param res - Objeto Response de Express
+   * @param documentPatient - Documento de identidad del paciente
+   * @param consecutiveAdmission - Consecutivo de la admisión
+   * @param numberFac - Número de factura a incluir (opcional)
+   * @throws InternalServerErrorException Si falla la generación del PDF
+   */
+  async generatePdfFac(res: Response, req: Request, documentPatient: string, consecutiveAdmission: number, numberFac?: string) {
     try {
-      // 🔹 Buscar admisión por documento y consecutivo
       let procedures = [];
       const admission = await this.admissionService.getSignedAdmissionKeys(documentPatient, consecutiveAdmission);
       if (!admission) {
@@ -210,17 +268,15 @@ export class DocumentService {
       const doc = new PDFDocument();
       doc.pipe(res);
   
-      // 📌 AGREGAR LOGO (parte superior izquierda)
-      const logoPath = './src/assets/logo.png'; // Cambia esto por la ruta correcta
+      const logoPath = './src/assets/logo.png'; 
       try {
-        doc.image(logoPath, 70, 90, { width: 60 }); // Ajusta posición (x,y) y tamaño según necesites
+        doc.image(logoPath, 70, 90, { width: 60 }); 
         doc.moveDown(2);
       } catch (error) {
-        console.error('❌ Error cargando el logo:', error.message);
-        // Continuar sin logo si hay error
+        await this.logService.logAndThrow('error', `Error al cargar el logo: ${error.message}`, 'DocumentService');
+        throw new InternalServerErrorException(`Error al cargar el logo: ${error.message}`);
       }
   
-      // 📌 ENCABEZADO
       doc.fontSize(16).text(process.env.NOMBRE_HOSPITAL, { align: 'center' });
       doc.fontSize(12).text(process.env.NIT_HOSPITAL, { align: 'center' });
       doc.fontSize(14).text(process.env.NOMBRE_DOCUMENTO_HOSPITAL, { align: 'center' });
@@ -229,8 +285,7 @@ export class DocumentService {
       doc.fontSize(10).text(process.env.DESCRIPCION_DOCUMENTO_HOSPITAL, { align: 'center', italic: true });
       doc.moveDown(2);
   
-      // 📌 INFORMACIÓN DEL PACIENTE
-      doc.fontSize(12).text(`Fecha: ${new Date().toLocaleDateString()}                                                                         Nº de Factura: ${numberFac}`);
+      doc.fontSize(12).text(`Fecha: ${this.formatDate(admission.dateAdmission)}                                                                         Nº de Factura: ${numberFac}`);
       doc.moveDown();
       doc.fontSize(12).text(`Nombre Paciente: ${admission.fullNamePatient}`);
       doc.moveDown();
@@ -243,40 +298,33 @@ export class DocumentService {
         doc.fontSize(12).text('Procedimientos:');
         doc.moveDown(1);
   
-        // Márgenes y columnas
         const startA = doc.x;
         const marginA = 40;
-        const columnWidths = [80, 150]; // Ancho de las columnas: código, nombre
+        const columnWidths = [80, 150];
   
-        // Agregar encabezados de la "tabla"
         doc.fontSize(10).text('Código', startA + marginA, doc.y);
         doc.text('Nombre', startA + columnWidths[0] + marginA, doc.y-11);
         doc.moveDown(1);
   
-        // Agregar cada procedimiento
         procedures.forEach((procedure, index) => {
           doc.fontSize(10).text(procedure.codePro, startA + marginA, doc.y);
           doc.text(procedure.namePro, startA + columnWidths[0] + marginA, doc.y-11);
-          doc.moveDown(1);  // Mantener un pequeño espacio entre filas
+          doc.moveDown(1);
         });
-        doc.moveDown(2);  // Dejar un espacio después de la tabla
+        doc.moveDown(2);
       }
 
-      // 📌 FIRMAS (Paciente y Acompañante)
       const startX = doc.x;
       const lineY = doc.y + 40;
 
-      // 📌 TEXTO INFORMATIVO
       doc.fontSize(12).text(process.env.NORMATIVA_DOCUMENTO_HOSPITAL,startX - 120, lineY - 40, { align: 'justify' });
       doc.moveDown(2);
   
-      // Línea para la firma del paciente
       doc.moveTo(startX - 120, lineY + 110).lineTo(startX + 60, lineY + 110).stroke();
       doc.text('PACIENTE', startX - 120, lineY + 115);
       doc.text(`Nº Documento: ${admission.documentPatient}`, startX - 120, lineY + 130);
       doc.text(`Teléfono: ${admission.phonePatient}`, startX - 120, lineY + 145);
   
-      // Línea para la firma del acompañante
       const companionX = startX;
       doc.moveTo(companionX + 120 , lineY + 110).lineTo(companionX + 330, lineY + 110 ).stroke();
       doc.text('ACUDIENTE', companionX + 120, lineY + 115);
@@ -285,7 +333,6 @@ export class DocumentService {
       doc.text(`Parentesco: ${await this.mapRelation(admission.relationCompanion) || 'N/A'}`, companionX + 120, lineY + 160);
       doc.text(`Teléfono: ${admission.phoneCompanion || 'N/A'}`, companionX + 120, lineY + 175);
   
-      // 📌 OBTENER FIRMA Y AÑADIRLA AL PDF
       const signatureMarginTop = -20;
       if (admission.digitalSignature && admission.digitalSignature.signatureData) {
         try {
@@ -299,12 +346,21 @@ export class DocumentService {
             doc.image(imagePath, companionX + 130, lineY - signatureMarginTop, { width: 200, height: 100 });
           }
         } catch (error) {
-          console.error('❌ Error obteniendo la firma:', error.message);
+          await this.logService.logAndThrow('error', `Error al cargar la firma: ${error.message}`, 'DocumentService');
+          throw new InternalServerErrorException(`Error cargando la firma: ${error.message}`);
         }
       }
-  
-      doc.end();
+
+      await this.logService.log(
+        'info', 
+        `Se ha generado/descargado un comprobante para el paciente ${admission.fullNamePatient} con admisión no. ${admission.consecutiveAdmission} del día ${this.formatDate(admission.dateAdmission)}`, 
+        'DocumentService', 
+        undefined, 
+        req.user.username);
+
+      doc.end(); 
     } catch (error) {
+      await this.logService.logAndThrow('error', `Error al generar el PDF: ${error.message}`, 'DocumentService');
       throw new InternalServerErrorException(`Error generando PDF: ${error.message}`);
     }
   }  
