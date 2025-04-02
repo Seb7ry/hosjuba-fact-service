@@ -1,8 +1,8 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
-import { Request } from 'mssql';
+import { LeanDocument, Model } from 'mongoose';
 import { InjectModel } from "@nestjs/mongoose";
 import { DataSource } from "typeorm";
-import { LeanDocument, Model } from 'mongoose';
+import { Request } from 'mssql';
 
 import { Admission, AdmissionDocument } from "src/model/admission.model";
 
@@ -11,10 +11,18 @@ import { SignatureService } from "./signature.service";
 import { LogService } from "./log.service";
 
 import * as dotenv from 'dotenv';
-import { start } from "repl";
-import { TokenService } from "./token.service";
+
 dotenv.config(); 
 
+/**
+ * Servicio para gestión de admisiones médicas
+ * 
+ * Este servicio maneja:
+ * - Consulta de admisiones desde SQL Server
+ * - Almacenamiento en MongoDB con firmas digitales
+ * - Búsqueda avanzada con múltiples filtros
+ * - Manejo de firmas digitales asociadas
+ */
 @Injectable()
 export class AdmissionService {
 
@@ -26,6 +34,12 @@ export class AdmissionService {
         private readonly sqlService: SqlServerConnectionService
     ) { }
 
+    /**
+     * Obtiene todas las admisiones desde SQL Server
+     * @param req Objeto Request para logging
+     * @returns Listado completo de admisiones
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     async getAllAdmissions(req: Request): Promise<Admission[]> {
         const query = `
             SELECT 
@@ -61,6 +75,18 @@ export class AdmissionService {
         }
     }
 
+    /**
+     * Busca admisiones con múltiples filtros
+     * @param req Objeto Request para logging
+     * @param documentPatient Documento del paciente (requerido)
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @param startDateAdmission Fecha de inicio
+     * @param endDateAdmission Fecha de fin
+     * @param userAdmission Usuario que registró
+     * @param typeAdmission Tipo de admisión
+     * @returns Listado de admisiones filtradas
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     async getAdmissionFiltrer(req: Request, documentPatient: string, consecutiveAdmission: string, 
         startDateAdmission: string, endDateAdmission: string,
         userAdmission: string, typeAdmission: string): Promise<Admission[]> {
@@ -194,6 +220,13 @@ export class AdmissionService {
         }
     }
 
+    /**
+     * Obtiene una admisión específica por documento y consecutivo
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @returns Datos de la admisión
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission> {
         const query = `
             SELECT 
@@ -238,6 +271,16 @@ export class AdmissionService {
         }
     }    
 
+    /**
+     * Guarda una admisión con firma digital en MongoDB
+     * @param req Objeto Request para logging
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @param signature Firma digital en base64
+     * @param signedBy Tipo de firmante (paciente/acompañante)
+     * @returns Admisión guardada
+     * @throws InternalServerErrorException Si falla el guardado
+     */
     async saveAdmission(
         req: Request,
         documentPatient: string,
@@ -278,6 +321,14 @@ export class AdmissionService {
         }
     }
 
+    /**
+     * Actualiza una admisión manteniendo la firma digital existente
+     * @param req Objeto Request para logging
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @returns Admisión actualizada
+     * @throws InternalServerErrorException Si falla la actualización
+     */
     async updateAdmission(
         req: Request,
         documentPatient: string,
@@ -338,6 +389,12 @@ export class AdmissionService {
         }
     }    
     
+    /**
+     * Obtiene admisiones firmadas específicas
+     * @param admissions Array de {documentPatient, consecutiveAdmission}
+     * @returns Listado de admisiones firmadas
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
         try {
             if (!admissions || admissions.length === 0) {
@@ -362,6 +419,11 @@ export class AdmissionService {
         }
     }    
 
+    /**
+     * Obtiene todas las admisiones firmadas
+     * @returns Listado completo de admisiones firmadas
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     async getSignedAdmissionsAll(): Promise<any[]>{
         try {
             const allAdmissions = await this.admissionModel.find()
@@ -375,6 +437,13 @@ export class AdmissionService {
         }
     }
 
+    /**
+     * Verifica si una admisión específica tiene firma digital
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @returns Admisión firmada o null
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     async getSignedAdmissionKeys(documentPatient: string, consecutiveAdmission: number): Promise<any | null> {
         try {
             if (!documentPatient || consecutiveAdmission === undefined) {
@@ -396,6 +465,18 @@ export class AdmissionService {
         }
     }
 
+    /**
+     * Filtra admisiones firmadas con múltiples criterios
+     * @param req Objeto Request para logging
+     * @param documentPatient Documento del paciente
+     * @param consecutiveAdmission Consecutivo de admisión
+     * @param startDateAdmission Fecha de inicio
+     * @param endDateAdmission Fecha de fin
+     * @param userAdmission Usuario que registró
+     * @param typeAdmission Tipo de admisión
+     * @returns Listado de admisiones filtradas
+     * @throws InternalServerErrorException Si falla la consulta
+     */
     async getSignedAdmissionsFiltrer(
         req: Request,
         documentPatient?: string,
@@ -440,7 +521,7 @@ export class AdmissionService {
                 query['typeAdmission'] = typeAdmission;
             }
     
-            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa. ${mesage}.`, 'Comprobantes', undefined, req.user.username);
+            await this.logService.log('info', `Buscó el listado de admisiones disponibles. ${mesage}.`, 'Comprobantes', undefined, req.user.username);
             const filteredAdmissions = await this.admissionModel.find(query).lean();
             return filteredAdmissions;
         } catch (error) {

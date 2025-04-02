@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Body, Param, UseGuards, NotFoundException, InternalServerErrorException, BadRequestException } from "@nestjs/common";
+import { Controller, Post, Get, Body, Param, UseGuards, NotFoundException, InternalServerErrorException, BadRequestException, UseInterceptors } from "@nestjs/common";
 import { SignatureService } from "../service/signature.service";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
 import { Types } from "mongoose";
+import { RefreshTokenInterceptor } from "src/interceptor/refreshToken.interceptor";
 
 /**
  * Controlador para manejo de firmas digitales
@@ -32,6 +33,7 @@ export class SignatureController {
      */
     @Post("upload")
     @UseGuards(JwtAuthGuard)
+    @UseInterceptors(RefreshTokenInterceptor)
     async uploadSignature(@Body() body: { signatureBase64: string; filename: string }) {
         try {
             if (!body.signatureBase64 || !body.filename) {

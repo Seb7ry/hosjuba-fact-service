@@ -1,5 +1,6 @@
-import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post, Put, Query, Request, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post, Put, Query, Request, UnauthorizedException, UseGuards, UseInterceptors } from "@nestjs/common";
 import { JwtAuthGuard } from "src/guards/jwt-auth.guard";
+import { RefreshTokenInterceptor } from "src/interceptor/refreshToken.interceptor";
 import { Admission } from "src/model/admission.model";
 import { AdmissionService } from "src/service/admission.service";
 
@@ -76,6 +77,7 @@ export class AdmissionController {
      */
     @Get('filtrer')
     @UseGuards(JwtAuthGuard)
+    @UseInterceptors(RefreshTokenInterceptor)
     async getAdmissionFiltrer(
         @Request() req: Request,
         @Query('documentPatient') documentPatient: string,
@@ -116,6 +118,7 @@ export class AdmissionController {
      */
     @Post('save')
     @UseGuards(JwtAuthGuard)
+    @UseInterceptors(RefreshTokenInterceptor)
     async saveAdmission(
         @Request() req: Request,
         @Query('documentPatient') documentPatient: string,  
@@ -184,6 +187,7 @@ export class AdmissionController {
      */
     @Get('signedFiltrer')
     @UseGuards(JwtAuthGuard)
+    @UseInterceptors(RefreshTokenInterceptor)
     async getSignedAdmissionsFiltrer(
         @Request() req: Request,
         @Query('documentPatient') documentPatient: string,
@@ -225,6 +229,7 @@ export class AdmissionController {
      */
     @Put('updateSigned')
     @UseGuards(JwtAuthGuard)
+    @UseInterceptors(RefreshTokenInterceptor)
     async updateAdmission(
         @Request() req: Request,
         @Query('documentPatient') documentPatient: string,

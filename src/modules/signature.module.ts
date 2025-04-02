@@ -6,10 +6,13 @@ import { LogModule } from "./log.module";
 import { JwtModule } from "@nestjs/jwt";
 import { SqlServerConnectionModule } from "./sqlServerConnection.module";
 import { Admission, AdmissionSchema } from "src/model/admission.model";
+import { TokenService } from "src/service/token.service";
+import { TokenModule } from "./token.module";
 
 @Module({
     imports: [
         LogModule,
+        TokenModule,
         JwtModule.register({
             secret: process.env.JWT_SECRET,
             signOptions: { expiresIn: process.env.TIME_SESSION },

@@ -63,19 +63,10 @@ dotenv.config();
   ],
   providers: [
     AppService,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RefreshTokenInterceptor
-    }
   ],
-})
-export class AppModule implements OnModuleInit {
+}) export class AppModule implements OnModuleInit {
   constructor(private readonly sqlServerConnectionService: SqlServerConnectionService) {}
 
-  /**
-   * Método que se ejecuta al iniciar el módulo.
-   * Puede ser utilizado para realizar inicializaciones o configuraciones previas.
-   */
   async onModuleInit() { 
     await this.sqlServerConnectionService.onModuleInit();
   }

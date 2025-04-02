@@ -1,7 +1,8 @@
-import { BadRequestException, Controller, Get, Query, Res, UseGuards, Request, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query, Res, UseGuards, Request, NotFoundException, UseInterceptors } from '@nestjs/common';
 import { DocumentService } from '../service/document.service';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { Response } from 'express';
+import { RefreshTokenInterceptor } from 'src/interceptor/refreshToken.interceptor';
 
 /**
  * Controlador para manejo de documentos y facturas
@@ -31,6 +32,7 @@ export class DocumentController {
    */
   @Get()
   @UseGuards(JwtAuthGuard)
+  @UseInterceptors(RefreshTokenInterceptor)
   async generatePdf(
     @Res() res: Response,
     @Request() req: Request,
