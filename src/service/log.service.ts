@@ -64,7 +64,6 @@ export class LogService {
                 user
             });
 
-            // Output to console based on level
             if (level === 'error') {
                 this.logger.error(message, context);
             } else if (level === 'warn') {

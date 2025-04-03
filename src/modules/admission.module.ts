@@ -6,11 +6,10 @@ import { SignatureModule } from './signature.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { LogModule } from './log.module';
 import { JwtModule } from '@nestjs/jwt';
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 
 import { AdmissionService } from 'src/service/admission.service';
 import { TokenModule } from './token.module';
-import { TokenService } from 'src/service/token.service';
 
 @Module({
     imports: [

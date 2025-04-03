@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query, Res, UseGuards, Request, NotFoundException, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query, Res, UseGuards, Request, NotFoundException, UseInterceptors, Req } from '@nestjs/common';
 import { DocumentService } from '../service/document.service';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { Response } from 'express';
@@ -32,10 +32,9 @@ export class DocumentController {
    */
   @Get()
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(RefreshTokenInterceptor)
   async generatePdf(
     @Res() res: Response,
-    @Request() req: Request,
+    @Req() req: Request,
     @Query('documentPatient') documentPatient: string,
     @Query('consecutiveAdmission') consecutiveAdmission: number,
     @Query('numberFac') numberFac?: string,
@@ -63,6 +62,7 @@ export class DocumentController {
    */
   @Get('allFact')
   @UseGuards(JwtAuthGuard)
+  @UseInterceptors(RefreshTokenInterceptor)
   async getFact(
     @Query('documentPatient') documentPatient: string,
     @Query('consecutiveAdmission') consecutiveAdmission: string,
@@ -71,31 +71,6 @@ export class DocumentController {
         return await this.documentService.getFact(req, documentPatient, consecutiveAdmission);
       } catch(error) {
         throw new NotFoundException('No se pudieron obtener las facturas.');
-      }
-    }
-
-  /**
-   * Obtiene el detalle de procedimientos de una factura específica
-   * 
-   * @param documentPatient - Documento del paciente (requerido)
-   * @param consecutiveAdmission - Consecutivo de admisión (requerido)
-   * @param numberFac - Número de factura (requerido)
-   * @param req - Request con información de usuario
-   * 
-   * @returns Array con detalle de procedimientos
-   * @throws NotFoundException si no se encuentra la factura
-   */
-  @Get('factDetails')
-  @UseGuards(JwtAuthGuard)
-  async getFactDetails(
-    @Query('documentPatient') documentPatient: string,
-    @Query('consecutiveAdmission') consecutiveAdmission: string,
-    @Query('numberFac') numberFac: string,
-    @Request() req: Request): Promise<any[] | any>{
-      try{
-        return await this.documentService.getFactDetails(req, documentPatient, consecutiveAdmission, numberFac);
-      } catch(error) {
-        throw new NotFoundException('No se pudieron obtener los detalles de la factura ', numberFac);
       }
     }
 }

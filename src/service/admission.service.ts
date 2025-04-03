@@ -63,7 +63,6 @@ export class AdmissionService {
                 ON I.IngCsc = TF.TmCtvIng
                 AND I.MPCedu = TF.TFCedu
                 AND I.MPTDoc = TF.TFTDoc
-                WHERE I.MPCodP <> 9
             ORDER BY I.IngFecAdm DESC`;
 
         try {
@@ -125,10 +124,9 @@ export class AdmissionService {
                 LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
                 LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
             FROM INGRESOS I
-                LEFT JOIN CAPBAS CB
+                JOIN CAPBAS CB
                     ON I.MPCedu = CB.MPCedu
                     AND I.MPTDoc = CB.MPTDoc
-            WHERE I.MPCodP <> 9 
                 AND I.MPCedu = @documentPatient`; 
 
         if (consecutiveAdmission) {
@@ -334,34 +332,27 @@ export class AdmissionService {
         documentPatient: string,
         consecutiveAdmission: string
     ): Promise<Admission> {
-        // Obtener los datos actuales de la admisión desde la base de datos SQL Server
         const admissionData = await this.getAdmissionByKeys(documentPatient, consecutiveAdmission);
-        console.log(admissionData);
         if (!admissionData) {
             await this.logService.logAndThrow('warn', '⚠️ No se encontró la admisión para el paciente.', 'AdmissionService');
             throw new InternalServerErrorException('Admisión no encontrada');
         }
     
-        // Obtener los datos de la admisión actual en MongoDB
         const currentAdmissionMongo = await this.admissionModel.findOne({ documentPatient, consecutiveAdmission });
         
-        // Si la admisión no existe en MongoDB, se maneja el error
         if (!currentAdmissionMongo) {
             await this.logService.logAndThrow('warn', '⚠️ No se encontró la admisión en MongoDB.', 'AdmissionService');
             throw new InternalServerErrorException('Admisión no encontrada en MongoDB');
         }
     
-        // Mantener la firma digital tal como está en MongoDB
         const { digitalSignature } = currentAdmissionMongo.toObject();
     
-        // Crear un objeto con los datos actualizados excluyendo la firma digital
         const updatedAdmission = {
-            ...admissionData, // Datos traídos de SQL Server
-            digitalSignature, // Mantener la firma digital original
+            ...admissionData,
+            digitalSignature,
         };
     
         try {
-            // Log de la actualización
             await this.logService.log(
                 'info', 
                 `Actualizando admisión con consecutivo ${admissionData.consecutiveAdmission} y documento ${admissionData.documentPatient}.`, 
@@ -370,11 +361,10 @@ export class AdmissionService {
                 req.user.username
             );
     
-            // Actualizar la admisión en MongoDB
             const updatedAdmissionRecord = await this.admissionModel.findOneAndUpdate(
                 { documentPatient, consecutiveAdmission },
-                updatedAdmission, // Actualizamos con los nuevos datos, sin cambiar la firma digital
-                { new: true } // Devuelve el documento actualizado
+                updatedAdmission, 
+                { new: true } 
             );
     
             if (!updatedAdmissionRecord) {

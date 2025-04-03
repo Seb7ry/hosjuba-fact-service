@@ -49,6 +49,7 @@ export class DocumentService {
     if(relationCompanion === 'A') return "Amigo(a)"
     if(relationCompanion === 'O') return "Otro"
   }
+
   /**
    * Método auxiliar para corregir el formato de las fechas obtenidas
    * de la base de datos MongoDB.
@@ -96,6 +97,45 @@ export class DocumentService {
   }
 
   /**
+   * Obtiene el pabellón de atención de una admisión y su respectiva factura
+   * @param req - Objeto Request de la solicitud HTTP
+   * @param documentPatient - Documento de identidad del paciente
+   * @param consecutiveAdmission - Consecutivo de la admisión
+   * @param numberFac - Número de la factura
+   * @returns String del pabellón
+   * @throws InternalServerErrorException Si falla la consulta a la base de datos
+   */
+  async getPab(req: Request, documentPatient: string, consecutiveAdmission: number, numberFac: string): Promise<string> {
+    const pool = await this.sqlServerConnectionService.getConnectionPool();
+    const query = `
+        SELECT 
+            FacCodPab 
+        FROM MAEATE 
+        WHERE MPCedu= @documentPatient 
+            AND MaCtvIng = @consecutiveAdmission 
+            AND MPNFac = @numberFac 
+            AND MAEstF NOT IN (1,10);
+    `;
+    try {
+        const result = await pool
+            .request()
+            .input('documentPatient', documentPatient)
+            .input('consecutiveAdmission', consecutiveAdmission)
+            .input('numberFac', numberFac)
+            .query(query);
+
+        return result.recordset.length > 0 ? result.recordset[0].FacCodPab.toString() : 'N/A';
+    } catch (error) {
+        await this.logService.logAndThrow(
+            'error',
+            `Error al obtener los pabellones del [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
+            'DocumentService'
+        );
+        throw new InternalServerErrorException("No se pudieron obtener los detalles de la factura.", error);
+    }
+}
+
+  /**
    * Obtiene detalles de procedimientos de una factura específica
    * @param req - Objeto Request de la solicitud HTTP
    * @param documentPatient - Documento de identidad del paciente
@@ -104,20 +144,21 @@ export class DocumentService {
    * @returns Array con detalles de procedimientos
    * @throws InternalServerErrorException Si falla la consulta a la base de datos
    */
-  async getFactDetails(req: Request, documentPatient: string, consecutiveAdmission: string, numberFac: string): Promise<any[]> {
+  async getFactDetailsPro(req: Request, documentPatient: string, consecutiveAdmission: string, numberFac: string): Promise<any[]> {
       const pool = await this.sqlServerConnectionService.getConnectionPool();
       const query = `
           SELECT 
               LTRIM(RTRIM(MAEATE2.PRCODI)) AS codePro,
               LTRIM(RTRIM(MAEPRO.PrNomb)) AS namePro
           FROM MAEATE
-          JOIN MAEATE2 ON MAEATE.MPNFac = MAEATE2.MPNFac AND MAEATE.MATipDoc = MAEATE2.MATipDoc
-          JOIN MAEPRO ON MAEATE2.PRCODI = MAEPRO.PRCODI
+            JOIN MAEATE2 ON MAEATE.MPNFac = MAEATE2.MPNFac AND MAEATE.MATipDoc = MAEATE2.MATipDoc
+            JOIN MAEPRO ON MAEATE2.PRCODI = MAEPRO.PRCODI
           WHERE MAEATE.MPCedu = @documentPatient
-          AND MAEATE.MaCtvIng = @consecutiveAdmission
-          AND MAEATE.MAEstF NOT IN (1,10)
-          AND MAEATE.MPNFac = @numberFac
-          AND MAEATE2.MaEsAnuP <> 'S';
+            AND MAEATE.MaCtvIng = @consecutiveAdmission
+            AND MAEATE.MAEstF NOT IN (1,10)
+            AND MAEATE.MPNFac = @numberFac
+            AND MAEATE2.MaEsAnuP <> 'S'
+          GROUP BY MAEATE2.PRCODI, MAEPRO.PrNomb;
       `;
 
       try {
@@ -132,11 +173,46 @@ export class DocumentService {
       } catch (error) {
           await this.logService.logAndThrow(
               'error',
-              `Error al obtener detalles de la factura [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
+              `Error al obtener detalles de los procedimientos del [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
               'DocumentService'
           );
           throw new InternalServerErrorException("No se pudieron obtener los detalles de la factura.", error);
       }
+    }
+
+  async getFactDetailsSum(req: Request, documentPatient: string, consecutiveAdmission: string, numberFac: string): Promise<any[]> {
+    const pool = await this.sqlServerConnectionService.getConnectionPool();
+    const query = `
+        SELECT 
+            LTRIM(RTRIM(MAEATE3.MSRESO)) AS codePro,
+            LTRIM(RTRIM(MAESUM1.MSNOMG)) AS namePro
+        FROM MAEATE3
+          JOIN MAEATE ON MAEATE3.MPNFac = MAEATE.MPNFac AND MAEATE.MATipDoc = MAEATE3.MATipDoc
+          JOIN MAESUM1 ON MAEATE3.MSRESO = MAESUM1.MSRESO
+        WHERE MAEATE3.MPNFac = @numberFac 
+          AND MAEATE.MAEstF NOT IN (1,10) 
+          AND MAEATE3.FCSTPOTRN <> 'H'  
+          AND MAEATE3.MAESANUS <> 'S'
+        GROUP BY MAEATE3.MSRESO, MAESUM1.MSNOMG;
+    `;
+
+    try {
+        const result = await pool
+            .request()
+            .input('documentPatient', documentPatient)
+            .input('consecutiveAdmission', consecutiveAdmission)
+            .input('numberFac', numberFac)
+            .query(query);
+
+        return result.recordset;
+    } catch (error) {
+        await this.logService.logAndThrow(
+            'error',
+            `Error al obtener detalles de los suministros del [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
+            'DocumentService'
+        );
+        throw new InternalServerErrorException("No se pudieron obtener los detalles de la factura.", error);
+    }
   }
 
   /**
@@ -149,6 +225,7 @@ export class DocumentService {
   async generatePdf(res: Response, req: Request, documentPatient: string, consecutiveAdmission: number) {
     try {
       const admission = await this.admissionService.getSignedAdmissionKeys(documentPatient, consecutiveAdmission);
+      
       if (!admission) {
         throw new InternalServerErrorException('No se encontró una admisión con firma digital.');
       }
@@ -175,22 +252,14 @@ export class DocumentService {
       doc.fontSize(10).text(process.env.DESCRIPCION_DOCUMENTO_HOSPITAL, { align: 'center', italic: true });
       doc.moveDown(2);
       
-      doc.fontSize(12).text(`Fecha: ${new Date().toLocaleDateString()}                                                                         Nº de Factura: N/A`);
+      doc.fontSize(12).text(`Fecha: ${this.formatDate(admission.dateAdmission)}                                                                         Nº de Factura: N/A`);
       doc.moveDown();
       doc.fontSize(12).text(`Nombre Paciente: ${admission.fullNamePatient}`);
       doc.moveDown();
       doc.fontSize(12).text(`Documento Paciente: ${admission.documentPatient}`);
       doc.moveDown();
       doc.fontSize(12).text(`Servicio Prestado: ${await this.mapService(admission.typeAdmission)}`);
-      doc.moveDown();
-      
-      if (admission.procedures && admission.procedures.length > 0) {
-        doc.fontSize(12).text('Procedimientos:', { underline: true });
-        admission.procedures.forEach((procedure, index) => {
-          doc.text(`${index + 1}. ${procedure.name}`);
-        });
-      }
-      doc.moveDown();
+      doc.moveDown(2);
       
       doc.fontSize(12).text(process.env.NORMATIVA_DOCUMENTO_HOSPITAL, { align: 'justify' }
       );
@@ -198,19 +267,43 @@ export class DocumentService {
       
       const startX = doc.x;
       const lineY = doc.y + 40;
-      
-      doc.moveTo(startX, lineY + 30).lineTo(startX + 180, lineY + 30).stroke();
-      doc.text('PACIENTE', startX, lineY + 35);
-      doc.text(`Nº Documento: ${admission.documentPatient}`, startX, lineY + 50);
-      doc.text(`Teléfono: ${admission.phonePatient}`, startX, lineY + 65);
-      
+
+      let pacienteY = lineY + 30;
+      let acompananteY = pacienteY;
+
+      doc.moveTo(startX, pacienteY).lineTo(startX + 180, pacienteY).stroke();
+      doc.text('PACIENTE', startX, pacienteY + 5);
+
+      const pacienteFields = [
+        `Nº Documento: ${admission.documentPatient}`,
+        `Teléfono: ${admission.phonePatient}`
+      ];
+
+      for (const field of pacienteFields) {
+        const fieldHeight = doc.heightOfString(field, { width: 320 });
+        doc.text(field, startX, pacienteY + 20);
+        pacienteY += fieldHeight + 5;
+      }
+
       const companionX = startX + 280;
-      doc.moveTo(companionX - 40, lineY + 30).lineTo(companionX + 180, lineY + 30).stroke();
-      doc.text('ACUDIENTE', companionX - 40, lineY + 35);
-      doc.text(`Nombre: ${admission.nameCompanion || 'N/A'}`, companionX - 40, lineY + 50)
-      doc.text(`Nº Documento: ${admission.documentCompanion || 'N/A'}`, companionX - 40, lineY + 65);
-      doc.text(`Parentesco: ${await this.mapRelation(admission.relationCompanion) || 'N/A'}`, companionX - 40, lineY + 80);
-      doc.text(`Teléfono: ${admission.phoneCompanion || 'N/A'}`, companionX - 40, lineY + 95);
+      acompananteY = lineY + 30;
+
+      doc.moveTo(companionX - 40, acompananteY).lineTo(companionX + 180, acompananteY).stroke();
+      doc.text('ACUDIENTE', companionX - 40, acompananteY + 5);
+
+      const acompananteFields = [
+        `Nombre: ${admission.nameCompanion || 'N/A'}`,
+        `Nº Documento: ${admission.documentCompanion || 'N/A'}`,
+        `Parentesco: ${await this.mapRelation(admission.relationCompanion) || 'N/A'}`,
+        `Teléfono: ${admission.phoneCompanion || 'N/A'}`
+      ];
+
+      let currentY = acompananteY + 20;
+      for (const field of acompananteFields) {
+        const fieldHeight = doc.heightOfString(field, { width: 320 });
+        doc.text(field, companionX - 40, currentY);
+        currentY += fieldHeight + 5; 
+      }
       
       if (admission.digitalSignature && admission.digitalSignature.signatureData) {
         try {
@@ -253,14 +346,16 @@ export class DocumentService {
    */
   async generatePdfFac(res: Response, req: Request, documentPatient: string, consecutiveAdmission: number, numberFac?: string) {
     try {
-      let procedures = [];
+      let procedures, supplies = [];
       const admission = await this.admissionService.getSignedAdmissionKeys(documentPatient, consecutiveAdmission);
+      const pabellon = await this.getPab(req, documentPatient, consecutiveAdmission, numberFac);
       if (!admission) {
         throw new InternalServerErrorException('No se encontró una admisión con firma digital.');
       }
   
       if (numberFac) {
-        procedures = await this.getFactDetails(res, documentPatient, consecutiveAdmission.toString(), numberFac);
+        procedures = await this.getFactDetailsPro(res, documentPatient, consecutiveAdmission.toString(), numberFac);
+        supplies = await this.getFactDetailsSum(res, documentPatient, consecutiveAdmission.toString(), numberFac);
       }
   
       res.setHeader('Content-Disposition', 'attachment; filename=comprobante.pdf');
@@ -285,13 +380,13 @@ export class DocumentService {
       doc.fontSize(10).text(process.env.DESCRIPCION_DOCUMENTO_HOSPITAL, { align: 'center', italic: true });
       doc.moveDown(2);
   
-      doc.fontSize(12).text(`Fecha: ${this.formatDate(admission.dateAdmission)}                                                                         Nº de Factura: ${numberFac}`);
+      doc.fontSize(12).text(`Fecha: ${this.formatDate(admission.dateAdmission)}                                                        Nº de Factura: ${numberFac}`);
       doc.moveDown();
       doc.fontSize(12).text(`Nombre Paciente: ${admission.fullNamePatient}`);
       doc.moveDown();
       doc.fontSize(12).text(`Documento Paciente: ${admission.documentPatient}`);
       doc.moveDown();
-      doc.fontSize(12).text(`Servicio Prestado: ${await this.mapService(admission.typeAdmission)}`);
+      doc.fontSize(12).text(`Servicio Prestado: ${await this.mapService(pabellon)}`);
       doc.moveDown();
   
       if (procedures.length > 0) {
@@ -311,28 +406,73 @@ export class DocumentService {
           doc.text(procedure.namePro, startA + columnWidths[0] + marginA, doc.y-11);
           doc.moveDown(1);
         });
-        doc.moveDown(2);
       }
+
+      if (supplies.length > 0) {
+
+        const startA = doc.x;
+        const marginA = 40;
+        const columnWidths = [80, 150];
+
+        doc.fontSize(12).text('Suministros:', startA - 120);
+        doc.moveDown(1);
+  
+        doc.fontSize(10).text('Código', startA + marginA - 120, doc.y);
+        doc.text('Nombre', startA + columnWidths[0] + marginA - 120, doc.y-11);
+        doc.moveDown(1);
+  
+        supplies.forEach((supplies, index) => {
+          doc.fontSize(10).text(supplies.codePro, startA + marginA - 120, doc.y);
+          doc.text(supplies.namePro, startA + columnWidths[0] + marginA - 120, doc.y-11);
+          doc.moveDown(1);
+        });
+      }
+      doc.moveDown();
 
       const startX = doc.x;
       const lineY = doc.y + 40;
 
-      doc.fontSize(12).text(process.env.NORMATIVA_DOCUMENTO_HOSPITAL,startX - 120, lineY - 40, { align: 'justify' });
+      const normativaText = process.env.NORMATIVA_DOCUMENTO_HOSPITAL || "";
+      const normativaHeight = doc.heightOfString(normativaText);
+
+      doc.fontSize(12).text(normativaText, startX - 120, lineY - 40, { align: 'justify' });
       doc.moveDown(2);
-  
-      doc.moveTo(startX - 120, lineY + 110).lineTo(startX + 60, lineY + 110).stroke();
-      doc.text('PACIENTE', startX - 120, lineY + 115);
-      doc.text(`Nº Documento: ${admission.documentPatient}`, startX - 120, lineY + 130);
-      doc.text(`Teléfono: ${admission.phonePatient}`, startX - 120, lineY + 145);
-  
+
+      let pacienteY = lineY + normativaHeight + 20;
+      let acompananteY = pacienteY;
+
+      doc.moveTo(startX - 120, pacienteY + 40).lineTo(startX + 60, pacienteY + 40).stroke();
+      doc.text('PACIENTE', startX - 120, pacienteY + 45);
+
+      const docPacienteText = `Nº Documento: ${admission.documentPatient}`;
+      const docPacienteHeight = doc.heightOfString(docPacienteText, { width: 200 });
+      doc.text(docPacienteText, startX - 120, pacienteY + 60);
+
+      const telPacienteText = `Teléfono: ${admission.phonePatient}`;
+      const telPacienteHeight = doc.heightOfString(telPacienteText, { width: 200 });
+      doc.text(telPacienteText, startX - 120, pacienteY + 60 + docPacienteHeight + 5);
+
+      pacienteY += docPacienteHeight + telPacienteHeight + 20; 
+
       const companionX = startX;
-      doc.moveTo(companionX + 120 , lineY + 110).lineTo(companionX + 330, lineY + 110 ).stroke();
-      doc.text('ACUDIENTE', companionX + 120, lineY + 115);
-      doc.text(`Nombre: ${admission.nameCompanion || 'N/A'}`, companionX + 120, lineY + 130);
-      doc.text(`Nº Documento: ${admission.documentCompanion || 'N/A'}`, companionX + 120, lineY + 145);
-      doc.text(`Parentesco: ${await this.mapRelation(admission.relationCompanion) || 'N/A'}`, companionX + 120, lineY + 160);
-      doc.text(`Teléfono: ${admission.phoneCompanion || 'N/A'}`, companionX + 120, lineY + 175);
-  
+      doc.moveTo(companionX + 120, pacienteY - 7).lineTo(companionX + 330, pacienteY - 7).stroke();
+      doc.text('ACUDIENTE', companionX + 120, pacienteY);
+
+      let currentY = pacienteY + 15; 
+
+      const fields = [
+        `Nombre: ${admission.nameCompanion || 'N/A'}`,
+        `Nº Documento: ${admission.documentCompanion || 'N/A'}`,
+        `Parentesco: ${await this.mapRelation(admission.relationCompanion) || 'N/A'}`,
+        `Teléfono: ${admission.phoneCompanion || 'N/A'}`,
+      ];
+
+      for (const field of fields) {
+        const fieldHeight = doc.heightOfString(field, { width: 320 });
+        doc.text(field, companionX + 120, currentY); 
+        currentY += fieldHeight + 5; 
+      }
+
       const signatureMarginTop = -20;
       if (admission.digitalSignature && admission.digitalSignature.signatureData) {
         try {
@@ -353,7 +493,7 @@ export class DocumentService {
 
       await this.logService.log(
         'info', 
-        `Se ha generado/descargado un comprobante para el paciente ${admission.fullNamePatient} con admisión no. ${admission.consecutiveAdmission} del día ${this.formatDate(admission.dateAdmission)}`, 
+        `Se ha generado/descargado un comprobante para el paciente ${admission.fullNamePatient} con admisión no. ${admission.consecutiveAdmission} del día ${this.formatDate(admission.dateAdmission)} y con número de factura ${numberFac}`, 
         'DocumentService', 
         undefined, 
         req.user.username);

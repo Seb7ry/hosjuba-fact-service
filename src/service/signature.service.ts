@@ -26,7 +26,6 @@ export class SignatureService {
         @InjectModel(Admission.name) private readonly admissionModel: Model<AdmissionDocument>,
         private readonly logService: LogService
     ) {
-        // Configuración del bucket GridFS para almacenar firmas
         this.bucket = new GridFSBucket(this.connection.db, { bucketName: "signatures" });
     }
 

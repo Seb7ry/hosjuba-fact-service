@@ -42,11 +42,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * }
    */
   async validate(payload: any) {
-    // Busca el refreshToken desde la base de datos
     const tokenRecord = await this.tokenService.findTokenByName(payload.username);
     return {
       ...payload,
-      refreshToken: tokenRecord?.refreshToken, // Añade el refreshToken al objeto user
+      refreshToken: tokenRecord?.refreshToken,
     };
   }
 }
