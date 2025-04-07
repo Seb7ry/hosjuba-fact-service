@@ -237,8 +237,10 @@ export class DocumentService {
       doc.pipe(res);
 
       const logoPath = './src/assets/logo.png'; 
+      const goberPath = './src/assets/logo2.png';
       try {
         doc.image(logoPath, 70, 90, { width: 60 });
+        doc.image(goberPath, 470, 80, {width: 76});
         doc.moveDown(2);
       } catch (error) {
         await this.logService.logAndThrow('error', `Error al cargar el logo: ${error.message}`, 'DocumentService');
@@ -323,6 +325,14 @@ export class DocumentService {
         }
       }
 
+      const pageHeight = doc.page.height;
+        const bottomMargin = doc.page.margins.bottom;
+        const footerHeight = 60;
+    
+        const footerY = pageHeight - bottomMargin - footerHeight + 10; 
+  
+        doc.image('./src/assets/footer.png', 210, footerY + 60, { width: 200, height: 50 });
+
       await this.logService.log(
         'info', 
         `Se ha generado/descargado un comprobante para el paciente ${admission.fullNamePatient} con admisión no. ${admission.consecutiveAdmission} del día ${this.formatDate(admission.dateAdmission)}`, 
@@ -336,185 +346,6 @@ export class DocumentService {
       throw new InternalServerErrorException(`Error generando PDF: ${error.message}`);
     }
   }
-
-/**  async generatePdfFac(res: Response, req: Request, documentPatient: string, consecutiveAdmission: number, numberFac?: string) {
-    try {
-        let procedures = [], supplies = [];
-        const admission = await this.admissionService.getSignedAdmissionKeys(documentPatient, consecutiveAdmission);
-        const pabellon = await this.getPab(req, documentPatient, consecutiveAdmission, numberFac);
-
-        if (!admission) {
-            throw new InternalServerErrorException('No se encontró una admisión con firma digital.');
-        }
-
-        if (numberFac) {
-            procedures = await this.getFactDetailsPro(res, documentPatient, consecutiveAdmission.toString(), numberFac);
-            supplies = await this.getFactDetailsSum(res, documentPatient, consecutiveAdmission.toString(), numberFac);
-        }
-
-        res.setHeader('Content-Disposition', 'attachment; filename=comprobante.pdf');
-        res.setHeader('Content-Type', 'application/pdf');
-
-        const doc = new PDFDocument({
-            size: 'A4',
-            margins: { top: 50, left: 50, right: 50, bottom: 50 },
-            bufferPages: true
-        });
-        doc.pipe(res);
-
-        const pageWidth = 595.28;
-        const leftMargin = 50;
-        const rightMargin = 550;
-        const centerX = pageWidth / 2;
-
-        // Encabezado
-        doc.image('./src/assets/logo.png', leftMargin, 50, { width: 60 });
-        doc.fontSize(16).text(process.env.NOMBRE_HOSPITAL, centerX - 200, 50, { width: 400, align: 'center' });
-        doc.fontSize(12).text(process.env.NIT_HOSPITAL, centerX - 200, 70, { width: 400, align: 'center' });
-        doc.fontSize(14).text(process.env.NOMBRE_DOCUMENTO_HOSPITAL, centerX - 200, 90, { width: 400, align: 'center' });
-
-        doc.moveTo(leftMargin, 120).lineTo(rightMargin, 120).stroke();
-        doc.fontSize(10).text(process.env.DESCRIPCION_DOCUMENTO_HOSPITAL, centerX - 200, 130, { width: 400, align: 'center', italic: true });
-
-        let currentY = 170;
-        doc.fontSize(12).text(`Fecha: ${this.formatDate(admission.dateAdmission)}`, leftMargin, currentY, { continued: true });
-        doc.text(`Nº de Factura: ${numberFac || 'N/A'}`, { align: 'right' });
-
-        currentY += 25;
-        doc.fontSize(12).text(`Nombre Paciente: ${admission.fullNamePatient}`, leftMargin, currentY);
-        currentY += 20;
-        doc.fontSize(12).text(`Documento Paciente: ${admission.documentPatient}`, leftMargin, currentY);
-        currentY += 20;
-        doc.fontSize(12).text(`Servicio Prestado: ${await this.mapService(pabellon)}`, leftMargin, currentY);
-        currentY += 20;
-
-        // Sección de procedimientos
-        if (procedures.length > 0) {
-            currentY = this.addSectionWithPageBreak(doc, currentY, 'Procedimientos:', procedures);
-        }
-
-        // Sección de suministros
-        if (supplies.length > 0) {
-            currentY = this.addSectionWithPageBreak(doc, currentY, 'Suministros:', supplies);
-        }
-
-        // Texto normativo
-        const normativaText = process.env.NORMATIVA_DOCUMENTO_HOSPITAL || "";
-        const normativaHeight = doc.heightOfString(normativaText, {
-            width: rightMargin - leftMargin
-        });
-
-        // Verificar espacio para texto normativo + espacio mínimo después (50px)
-        if (currentY + normativaHeight + 50 > doc.page.height - doc.page.margins.bottom) {
-            doc.addPage();
-            currentY = 50;
-        }
-
-        doc.fontSize(12).text(normativaText, leftMargin, currentY, {
-            align: 'justify',
-            width: rightMargin - leftMargin
-        });
-        currentY += normativaHeight + 30;
-
-        // Verificar si hay espacio suficiente para las firmas (necesitamos ~150px)
-        if (currentY + 150 > doc.page.height - doc.page.margins.bottom) {
-            doc.addPage();
-            currentY = 50;
-        }
-
-        // Añadir firmas
-        await this.addSignatureToDocument(doc, admission, leftMargin, currentY);
-
-        doc.end();
-    } catch (error) {
-        await this.logService.logAndThrow('error', `Error al generar el PDF: ${error.message}`, 'DocumentService');
-        throw new InternalServerErrorException(`Error generando PDF: ${error.message}`);
-    }
-}
-
-private addSectionWithPageBreak(doc: PDFDocument, currentY: number, title: string, items: any[]): number {
-    const leftMargin = 50;
-    const rightMargin = 550;
-    
-    // Añadir título de sección
-    doc.fontSize(12).text(title, leftMargin, currentY);
-    currentY += 20;
-
-    // Añadir encabezados de tabla
-    doc.fontSize(10).text('Código', leftMargin, currentY);
-    doc.text('Nombre', leftMargin + 100, currentY);
-    currentY += 15;
-    doc.moveTo(leftMargin, currentY).lineTo(rightMargin, currentY).stroke();
-    currentY += 10;
-
-    // Añadir items
-    items.forEach(item => {
-        const textHeight = doc.heightOfString(item.namePro, { width: 400 });
-        
-        // Verificar si necesitamos un salto de página
-        if (currentY + textHeight + 20 > doc.page.height - doc.page.margins.bottom) {
-            doc.addPage();
-            currentY = 50;
-        }
-        
-        doc.fontSize(10).text(item.codePro, leftMargin, currentY);
-        doc.text(item.namePro, leftMargin + 100, currentY, { width: 400 });
-        currentY += textHeight + 10;
-    });
-
-    return currentY + 10; // Retornar nueva posición Y
-}
-
-async addSignatureToDocument(doc: PDFDocument, admission: any, leftMargin: number, signatureStartY: number) {
-  const signatureWidth = 200; // Ancho de la firma
-  const signatureHeight = 100; // Aumenté la altura de 60 a 100 (ajusta este valor según necesites)
-  const gapBetweenSignatures = 50;
-  const lineY = signatureStartY + signatureHeight - 20; // Ajuste para alinear con la nueva altura
-
-  // Primero añadir la firma digital (si existe)
-  if (admission.digitalSignature && admission.digitalSignature.signatureData) {
-      try {
-          const signatureBuffer = await this.signatureService.getSignature(admission.digitalSignature.signatureData);
-          const signatureImage = signatureBuffer.toString('base64');
-          const imagePath = `data:image/png;base64,${signatureImage}`;
-          const signatureY = signatureStartY;
-
-          if (admission.digitalSignature.signedBy === 'patient') {
-              doc.image(imagePath, leftMargin, signatureY, { 
-                  width: signatureWidth, 
-                  height: signatureHeight,
-                  align: 'center',
-                  valign: 'center'
-              });
-          } else if (admission.digitalSignature.signedBy === 'companion') {
-              doc.image(imagePath, leftMargin + signatureWidth + gapBetweenSignatures, signatureY, { 
-                  width: signatureWidth, 
-                  height: signatureHeight,
-                  align: 'center',
-                  valign: 'center'
-              });
-          }
-      } catch (error) {
-          await this.logService.logAndThrow('error', `Error al cargar la firma: ${error.message}`, 'DocumentService');
-          throw new InternalServerErrorException(`Error cargando la firma: ${error.message}`);
-      }
-  }
-
-  // Línea y texto de firma del paciente (ajustada para la nueva altura)
-  doc.moveTo(leftMargin, lineY).lineTo(leftMargin + signatureWidth, lineY).stroke();
-  doc.fontSize(12).text('PACIENTE', leftMargin, lineY + 5);
-  doc.text(`Nº Documento: ${admission.documentPatient}`, leftMargin, lineY + 20);
-  doc.text(`Teléfono: ${admission.phonePatient}`, leftMargin, lineY + 35);
-
-  // Línea y texto de firma del acudiente (ajustada para la nueva altura)
-  const companionX = leftMargin + signatureWidth + gapBetweenSignatures;
-  doc.moveTo(companionX, lineY).lineTo(companionX + signatureWidth, lineY).stroke();
-  doc.fontSize(12).text('ACUDIENTE', companionX, lineY + 5);
-  doc.text(`Nombre: ${admission.nameCompanion}`, companionX, lineY + 20);
-  doc.text(`Nº Documento: ${admission.documentCompanion}`, companionX, lineY + 35);
-  doc.text(`Parentesco: ${await this.mapRelation(admission.relationCompanion)}`, companionX, lineY + 50);
-  doc.text(`Teléfono: ${admission.phoneCompanion}`, companionX, lineY + 65);
-}*/
 
 async generatePdfFac(res: Response, req: Request, documentPatient: string, consecutiveAdmission: number, numberFac?: string) {
   try {
@@ -569,21 +400,11 @@ async generatePdfFac(res: Response, req: Request, documentPatient: string, conse
         const bottomMargin = doc.page.margins.bottom;
         const footerHeight = 60;
     
-        const footerY = pageHeight - bottomMargin - footerHeight + 10; // Dentro del área visible
-    
-        
-        // Texto centrado
-        // doc.fontSize(10).fillColor('black')
-           // .text(`Comprobante correspondiente al documento ${documentPatient} y admisión ${consecutiveAdmission}. Derechos reservados.`, 0, footerY - 10, {
-              // align: 'center',
-              // width: doc.page.width
-           // });
-
-        // Imagen del footer (ajusta ruta y tamaño si es necesario)
+        const footerY = pageHeight - bottomMargin - footerHeight + 10; 
+  
         doc.image('./src/assets/footer.png', 430, footerY, { width: 120, height: 50 });
     };
 
-      // Añadir el encabezado a cada nueva página
       doc.on('pageAdded', () => {
         addHeader();
         addFooter();
@@ -591,7 +412,6 @@ async generatePdfFac(res: Response, req: Request, documentPatient: string, conse
 
       doc.pipe(res);
 
-      // Añadir encabezado a la primera página
       addHeader();
       addFooter();
 

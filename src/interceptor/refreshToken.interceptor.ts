@@ -2,6 +2,7 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nes
 import { Observable, from, of } from 'rxjs';
 import { mergeMap } from 'rxjs/operators';
 import { TokenService } from '../service/token.service';
+import { LogService } from 'src/service/log.service';
 
 /**
  * Interceptor para manejo automático de refresh tokens
@@ -17,7 +18,7 @@ import { TokenService } from '../service/token.service';
  */
 @Injectable()
 export class RefreshTokenInterceptor implements NestInterceptor {
-  constructor(private readonly tokenService: TokenService) {}
+  constructor(private readonly tokenService: TokenService, private readonly logService: LogService) {}
 
   /**
    * Método principal del interceptor
@@ -29,7 +30,6 @@ export class RefreshTokenInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
-    // Si no hay usuario autenticado, continuar sin hacer nada
     if (!request.user?.username) {
       return next.handle();
     }
@@ -38,9 +38,8 @@ export class RefreshTokenInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       mergeMap((data) => {
-        // Ejecutar en paralelo: refresh token + mantener datos originales
         return from(this.refreshToken(username, response)).pipe(
-          mergeMap(() => of(data)) // Mantener los datos originales del response
+          mergeMap(() => of(data)) 
         );
       })
     );
@@ -60,24 +59,19 @@ export class RefreshTokenInterceptor implements NestInterceptor {
         throw new Error(`No se encontró refreshToken para ${username}`);
       }
 
-      // Generar nuevo access token usando el refresh token
       const { access_token } = await this.tokenService.refreshAccessToken(
         username,
         tokenRecord.refreshToken,
       );
 
-      // Configurar cookie segura con el nuevo token
       response.cookie('access_token', access_token, {
-        httpOnly: true,    // No accesible desde JS
-        secure: true,      // Solo HTTPS
-        sameSite: 'strict', // Protección CSRF
-        maxAge: parseInt(process.env.ACCESS_TOKEN_EXPIRATION) * 1000 // Tiempo de vida
+        httpOnly: true,    
+        secure: true,      
+        sameSite: 'strict', 
+        maxAge: parseInt(process.env.ACCESS_TOKEN_EXPIRATION) * 1000
       });
-
-      console.log(`✅ Token refrescado para ${username}`);
     } catch (error) {
-      console.warn('⚠️ Error al refrescar token (no crítico):', error.message);
-      // No se propaga el error para no interrumpir la petición principal
+      this.logService.logAndThrow('warn', `Error al refrescar token (no crítico): ${error.mesage}`, 'RefreshTokenInterceptor');
     }
   }
 }

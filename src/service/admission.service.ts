@@ -491,16 +491,22 @@ export class AdmissionService {
                 query['consecutiveAdmission'] = consecutiveAdmission;
             }
             
-            if (startDateAdmission) {
-                mesage += ` fechaInicio: ${startDateAdmission}`;
-                query['dateAdmission'] = { $gte: new Date(startDateAdmission) };
+            if (startDateAdmission && !endDateAdmission) {
+                const start = new Date(`${startDateAdmission}T00:00:00.000-05:00`);
+                const end = new Date(`${startDateAdmission}T23:59:59.999-05:00`);
+            
+                mesage += ` fecha exacta: ${startDateAdmission}`;
+                query['dateAdmission'] = { $gte: start, $lte: end };
             }
             
-            if (endDateAdmission) {
-                mesage += ` fechaFinal: ${endDateAdmission}`;
-                query['dateAdmission'] = { $lte: new Date(endDateAdmission) };
-            }
+            if (startDateAdmission && endDateAdmission) {
+                const start = new Date(`${startDateAdmission}T00:00:00.000-05:00`);
+                const end = new Date(`${endDateAdmission}T23:59:59.999-05:00`);
             
+                mesage += ` fechaInicio: ${startDateAdmission}, fechaFinal: ${endDateAdmission}`;
+                query['dateAdmission'] = { $gte: start, $lte: end };
+            }            
+
             if (userAdmission) {
                 mesage += ` usuarioAdmision: ${userAdmission}`;
                 query['userAdmission'] = userAdmission;
