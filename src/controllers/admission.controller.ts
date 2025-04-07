@@ -86,10 +86,11 @@ export class AdmissionController {
         @Query('endDateAdmission') endDateAdmission:string,
         @Query('userAdmission') userAdmission: string,
         @Query('typeAdmission') typeAdmission: string
-    ): Promise<Admission[]> {
+    ): Promise<{ data: Admission[] }> {
         if (!documentPatient) {
             throw new UnauthorizedException("El número de documento es obligatorio.");
         }
+    
         const admission = await this.admissionService.getAdmissionFiltrer(
             req,
             documentPatient, 
@@ -97,14 +98,15 @@ export class AdmissionController {
             startDateAdmission,
             endDateAdmission,
             userAdmission,
-            typeAdmission);
-
+            typeAdmission
+        );
+    
         if (admission.length === 0) {
             throw new UnauthorizedException("No se encontraron admisiones.");
         }
-
-        return admission;
-    }
+    
+        return { data: admission };
+    }    
     
     /**
      * Guarda una admisión con firma digital
@@ -125,9 +127,10 @@ export class AdmissionController {
         @Query('consecutiveAdmission') consecutiveAdmission: string,  
         @Body('signature') signature: string,  
         @Body('signedBy') signedBy: string 
-    ): Promise<Admission> {
+    ): Promise<{ data: Admission }> {
         try {
-            return await this.admissionService.saveAdmission(req, documentPatient, consecutiveAdmission, signature, signedBy);
+            const saved = await this.admissionService.saveAdmission(req, documentPatient, consecutiveAdmission, signature, signedBy);
+            return { data: saved };
         } catch (error) {
             throw new NotFoundException('No se pudo guardar la admisión con la firma digital.', error);
         }
@@ -189,35 +192,38 @@ export class AdmissionController {
     @UseGuards(JwtAuthGuard)
     @UseInterceptors(RefreshTokenInterceptor)
     async getSignedAdmissionsFiltrer(
-        @Request() req: Request,
-        @Query('documentPatient') documentPatient: string,
-        @Query('consecutiveAdmission') consecutiveAdmission: string,
-        @Query('startDateAdmission') startDateAdmission: string,
-        @Query('endDateAdmission') endDateAdmission: string,
-        @Query('userAdmission') userAdmission: string,
-        @Query('typeAdmission') typeAdmission: string
-    ): Promise<Admission[]> {
-        try {
-            const filteredAdmissions = await this.admissionService.getSignedAdmissionsFiltrer(
-                req,
-                documentPatient, 
-                consecutiveAdmission, 
-                startDateAdmission, 
-                endDateAdmission, 
-                userAdmission, 
-                typeAdmission
-            );
+    @Request() req: Request,
+    @Query('documentPatient') documentPatient: string,
+    @Query('consecutiveAdmission') consecutiveAdmission: string,
+    @Query('startDateAdmission') startDateAdmission: string,
+    @Query('endDateAdmission') endDateAdmission: string,
+    @Query('userAdmission') userAdmission: string,
+    @Query('typeAdmission') typeAdmission: string
+    ): Promise<{ data: Admission[] }> {
+    try {
+        const filteredAdmissions = await this.admissionService.getSignedAdmissionsFiltrer(
+        req,
+        documentPatient,
+        consecutiveAdmission,
+        startDateAdmission,
+        endDateAdmission,
+        userAdmission,
+        typeAdmission
+        );
 
-            if (filteredAdmissions.length === 0) {
-                throw new NotFoundException('No se encontraron admisiones con los filtros proporcionados.');
-            }
-
-            return filteredAdmissions.map(admission => admission as Admission);
-            
-        } catch (error) {
-            throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
+        if (filteredAdmissions.length === 0) {
+        throw new NotFoundException('No se encontraron admisiones con los filtros proporcionados.');
         }
+
+        return {
+        data: filteredAdmissions.map(admission => admission as Admission)
+        };
+
+    } catch (error) {
+        throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
     }
+    }
+
     
     /**
      * Actualiza una admisión existente
@@ -234,9 +240,10 @@ export class AdmissionController {
         @Request() req: Request,
         @Query('documentPatient') documentPatient: string,
         @Query('consecutiveAdmission') consecutiveAdmission: string
-    ): Promise<Admission> {
+    ): Promise<{ data: Admission }> {
         try {
-            return await this.admissionService.updateAdmission(req, documentPatient, consecutiveAdmission);
+            const updated = await this.admissionService.updateAdmission(req, documentPatient, consecutiveAdmission);
+            return { data: updated };
         } catch (error) {
             throw new NotFoundException('No se pudo actualizar la admisión.', error);
         }

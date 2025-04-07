@@ -275,14 +275,29 @@ export class TokenService {
      * @param refreshToken - El refresh token utilizado para generar el nuevo access token.
      * @returns El nuevo access token.
      */
-    async refreshAccessToken(username: string, refreshToken: string): Promise<{ access_token: string }> {
+    async refreshAccessToken(
+        username: string,
+        refreshToken: string,
+      ): Promise<{ access_token: string }> {
         const isValid = await this.validateRefreshToken(username, refreshToken);
+      
         if (!isValid) {
-            await this.logService.logAndThrow('warn', `Refresh token inválido o expirado para el usuario: ${username}`, 'TokenService');
+          await this.logService.logAndThrow(
+            'warn',
+            `Refresh token inválido o expirado para el usuario: ${username}`,
+            'TokenService',
+          );
         }
-
+      
         const { access_token } = await this.generateAccessToken(username);
-        await this.saveAccessToken(username, access_token, new Date(Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRATION) * 60000));
+      
+        await this.saveAccessToken(
+          username,
+          access_token,
+          new Date(Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRATION) * 60000),
+        );
+      
         return { access_token };
-    }
+      }
+      
 }

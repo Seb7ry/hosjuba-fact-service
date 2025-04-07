@@ -64,13 +64,15 @@ export class DocumentController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(RefreshTokenInterceptor)
   async getFact(
-    @Query('documentPatient') documentPatient: string,
-    @Query('consecutiveAdmission') consecutiveAdmission: string,
-    @Request() req: Request): Promise<any[]>{
-      try{
-        return await this.documentService.getFact(req, documentPatient, consecutiveAdmission);
-      } catch(error) {
-        throw new NotFoundException('No se pudieron obtener las facturas.');
+      @Query('documentPatient') documentPatient: string,
+      @Query('consecutiveAdmission') consecutiveAdmission: string,
+      @Request() req: Request
+  ): Promise<{ data: any[] }> {
+      try {
+          const result = await this.documentService.getFact(req, documentPatient, consecutiveAdmission);
+          return { data: result };
+      } catch (error) {
+          throw new NotFoundException('No se pudieron obtener las facturas.');
       }
-    }
+  }  
 }

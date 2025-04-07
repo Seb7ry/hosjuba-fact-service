@@ -518,7 +518,9 @@ export class AdmissionService {
             }
     
             await this.logService.log('info', `Buscó el listado de admisiones disponibles. ${mesage}.`, 'Comprobantes', undefined, req.user.username);
+            
             const filteredAdmissions = await this.admissionModel.find(query).lean();
+            
             return filteredAdmissions;
         } catch (error) {
             await this.logService.logAndThrow('error', `Error al obtener las admisiones filtradas: ${error.message}`, 'AdmissionService');
