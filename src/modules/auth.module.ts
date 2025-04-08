@@ -5,7 +5,7 @@ import { AdmUsrService } from 'src/service/admusr.service';
 import { AuthService } from 'src/service/auth.service';
 
 import { AdmUsrModule } from './admusr.module';
-import { TokenModule } from './token.module';  // Asegúrate de importar el TokenModule
+import { TokenModule } from './token.module'; 
 import { LogModule } from './log.module';
 import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';

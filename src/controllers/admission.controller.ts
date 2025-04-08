@@ -192,36 +192,36 @@ export class AdmissionController {
     @UseGuards(JwtAuthGuard)
     @UseInterceptors(RefreshTokenInterceptor)
     async getSignedAdmissionsFiltrer(
-    @Request() req: Request,
-    @Query('documentPatient') documentPatient: string,
-    @Query('consecutiveAdmission') consecutiveAdmission: string,
-    @Query('startDateAdmission') startDateAdmission: string,
-    @Query('endDateAdmission') endDateAdmission: string,
-    @Query('userAdmission') userAdmission: string,
-    @Query('typeAdmission') typeAdmission: string
-    ): Promise<{ data: Admission[] }> {
-    try {
-        const filteredAdmissions = await this.admissionService.getSignedAdmissionsFiltrer(
-        req,
-        documentPatient,
-        consecutiveAdmission,
-        startDateAdmission,
-        endDateAdmission,
-        userAdmission,
-        typeAdmission
-        );
+        @Request() req: Request,
+        @Query('documentPatient') documentPatient: string,
+        @Query('consecutiveAdmission') consecutiveAdmission: string,
+        @Query('startDateAdmission') startDateAdmission: string,
+        @Query('endDateAdmission') endDateAdmission: string,
+        @Query('userAdmission') userAdmission: string,
+        @Query('typeAdmission') typeAdmission: string
+        ): Promise<{ data: Admission[] }> {
+        try {
+            const filteredAdmissions = await this.admissionService.getSignedAdmissionsFiltrer(
+            req,
+            documentPatient,
+            consecutiveAdmission,
+            startDateAdmission,
+            endDateAdmission,
+            userAdmission,
+            typeAdmission
+            );
 
-        if (filteredAdmissions.length === 0) {
-        throw new NotFoundException('No se encontraron admisiones con los filtros proporcionados.');
+            if (filteredAdmissions.length === 0) {
+            throw new NotFoundException('No se encontraron admisiones con los filtros proporcionados.');
+            }
+
+            return {
+            data: filteredAdmissions.map(admission => admission as Admission)
+            };
+
+        } catch (error) {
+            throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
         }
-
-        return {
-        data: filteredAdmissions.map(admission => admission as Admission)
-        };
-
-    } catch (error) {
-        throw new InternalServerErrorException('Error al obtener las admisiones filtradas', error);
-    }
     }
 
     

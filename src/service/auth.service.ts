@@ -1,9 +1,9 @@
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { Request } from 'mssql';
+
 import { AdmUsrService } from "./admusr.service";
 import { TokenService } from "./token.service";
-import { ConnectionPool, Request } from 'mssql';
-import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { LogService } from "./log.service";
-import { JwtService } from "@nestjs/jwt";
 
 /**
  * Servicio de autenticación que maneja el inicio y cierre de sesión de los usuarios.
@@ -25,7 +25,6 @@ export class AuthService {
      */
     constructor(
         private readonly tokenService: TokenService,
-        private readonly jwtService: JwtService,
         private readonly logService: LogService,
         private readonly admUsrService: AdmUsrService
     ) {}

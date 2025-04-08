@@ -298,6 +298,5 @@ export class TokenService {
         );
       
         return { access_token };
-      }
-      
+    }     
 }

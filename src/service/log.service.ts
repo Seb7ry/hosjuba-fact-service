@@ -1,5 +1,5 @@
 import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
-import { ConnectionPool, Request } from 'mssql';
+import { Request } from 'mssql';
 import { Log, LogDocument } from "src/model/log.model";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
