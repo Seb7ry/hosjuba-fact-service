@@ -46,6 +46,7 @@ export class AdmUsrService {
                 LTRIM(RTRIM(dbo.desencriptar(AUsrPsw))) AS password, 
                 LTRIM(RTRIM(AgrpId)) AS grupoId
             FROM ADMUSR
+                WHERE AUsrEst <> 'N'
         `;
 
         try {
@@ -77,6 +78,7 @@ export class AdmUsrService {
                 LTRIM(RTRIM(AgrpId)) AS grupoId
             FROM ADMUSR 
             WHERE dbo.desencriptar(AUsrId) = @0
+            AND AUsrEst <> 'N'
         `;
 
         try {
@@ -113,6 +115,7 @@ export class AdmUsrService {
                 LTRIM(RTRIM(AgrpId)) AS grupoId
             FROM ADMUSR 
             WHERE dbo.desencriptar(AUsrId) = @0
+            AND AUsrEst <> 'N'
         `;
 
         try {

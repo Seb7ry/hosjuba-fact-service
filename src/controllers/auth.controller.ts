@@ -42,6 +42,9 @@ export class AuthController {
                 throw new NotFoundException('Usuario no encontrado.');
             } else if (error.message.includes('Contraseña incorrecta')) {
                 throw new UnauthorizedException('Contraseña incorrecta.');
+            } else if (error.message.includes('Usuario no encontrado')) {
+                console.log(error.message)
+                throw new NotFoundException('Usuario no encontrado o inactivo.')
             } else {
                 throw new InternalServerErrorException('Error interno del servidor. Inténtalo más tarde.');
             }

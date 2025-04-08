@@ -19,6 +19,8 @@ import { LogService } from './log.service';
 @Injectable()
 export class DocumentService {
 
+  private readonly FOOTER_HEIGHT_EXTRA = 55;
+
   constructor(
     private readonly admissionService: AdmissionService,
     private readonly signatureService: SignatureService,
@@ -245,6 +247,18 @@ export class DocumentService {
       res.setHeader('Content-Type', 'application/pdf');
       doc.pipe(res);
 
+      // Añadir marca de agua vertical rotada (al inicio del documento)
+      doc.save()
+         .translate(20, 300) // Posición izquierda (x=20) y centrado vertical aproximado (y=300)
+         .rotate(-90) // Rotación 90° antihorario
+         .image('./src/assets/footer.png', -120, 0, {
+             width: 150, // Ancho después de rotación
+             height: 40, // Alto después de rotación
+             opacity: 0.2 // Transparencia para marca de agua
+         })
+         .restore();
+
+      // Logos y contenido principal (manteniendo tu código original)
       const logoPath = './src/assets/logo.png'; 
       const goberPath = './src/assets/logo2.png';
       try {
@@ -256,6 +270,7 @@ export class DocumentService {
         throw new InternalServerErrorException(`Error al cargar el logo: ${error.message}`);
       }
       
+      // Resto del contenido original...
       doc.fontSize(16).text(process.env.NOMBRE_HOSPITAL, { align: 'center' });
       doc.fontSize(12).text(process.env.NIT_HOSPITAL, { align: 'center' });
       doc.fontSize(14).text(process.env.NOMBRE_DOCUMENTO_HOSPITAL, { align: 'center'});
@@ -273,8 +288,7 @@ export class DocumentService {
       doc.fontSize(12).text(`Servicio Prestado: ${await this.mapService(admission.typeAdmission)}`);
       doc.moveDown(2);
       
-      doc.fontSize(12).text(process.env.NORMATIVA_DOCUMENTO_HOSPITAL, { align: 'justify' }
-      );
+      doc.fontSize(12).text(process.env.NORMATIVA_DOCUMENTO_HOSPITAL, { align: 'justify' });
       doc.moveDown(2);
       
       const startX = doc.x;
@@ -334,13 +348,40 @@ export class DocumentService {
         }
       }
 
-      const pageHeight = doc.page.height;
-        const bottomMargin = doc.page.margins.bottom;
-        const footerHeight = 60;
-    
-        const footerY = pageHeight - bottomMargin - footerHeight + 10; 
-  
-        doc.image('./src/assets/footer.png', 210, footerY + 60, { width: 200, height: 50 });
+      // Añadir footer al final del documento
+      const footerY = 645; // Posición fija aproximada para el footer
+      
+      // Línea separadora del footer
+      doc.moveTo(50, footerY)
+         .lineTo(550, footerY)
+         .lineWidth(0.5)
+         .stroke();
+      
+      // Contenido del footer
+      doc.fontSize(8)
+         .text(process.env.DIRECCION_HOSPITAL || '', 50, footerY + 10, {
+             width: 500,
+             align: 'center'
+         })
+         .text(`Tel: ${process.env.TELEFONO_HOSPITAL || ''}`, 50, doc.y + 5, {
+             width: 500,
+             align: 'center'
+         })
+         .text(process.env.PAGINA_HOSPITAL || '', 50, doc.y + 5, {
+             width: 500,
+             align: 'center'
+         });
+
+         const correos = [
+          process.env.CORREO2_HOSPITAL,
+          process.env.CORREO3_HOSPITAL,
+          process.env.CORREO4_HOSPITAL
+          ].filter(Boolean).join(' | ');
+      
+          doc.text(correos, 50, doc.y + 4, {
+              width: 500,
+              align: 'center'
+          });
 
       await this.logService.log(
         'info', 
@@ -355,6 +396,7 @@ export class DocumentService {
       throw new InternalServerErrorException(`Error generando PDF: ${error.message}`);
     }
   }
+
 
   /**
    * Genera un PDF con el comprobante de admisión básico
@@ -385,7 +427,7 @@ export class DocumentService {
 
         const doc = new PDFDocument({
             size: 'A4',
-            margins: { top: 150, left: 50, right: 50, bottom: 50 },
+            margins: { top: 150, left: 50, right: 50, bottom: 20 },
             bufferPages: true
         });
 
@@ -394,8 +436,23 @@ export class DocumentService {
             const leftMargin = 50;
             const rightMargin = 550;
             const centerX = pageWidth / 2;
+            const pageHeight = 842;
 
             const savedY = doc.y;
+
+            const imgWidth = 30; 
+            const imgHeight = 150; 
+            const imgX = 20; 
+            const imgY = pageHeight / 2 - imgWidth / 2; 
+
+            doc.save();
+            doc.translate(imgX, imgY)
+            .rotate(-90)
+            .image('./src/assets/footer.png', 100, 0, { 
+                width: imgHeight, 
+                height: imgWidth
+            })
+            .restore();
 
             doc.image('./src/assets/logo.png', leftMargin, 50, { width: 60 });
             doc.image('./src/assets/logo2.png', leftMargin + 430, 40, { width: 75 });
@@ -412,20 +469,62 @@ export class DocumentService {
         const addFooter = () => {
           const pageHeight = doc.page.height;
           const bottomMargin = doc.page.margins.bottom;
-          const footerHeight = 60;
+          const footerStartY = pageHeight - bottomMargin - this.FOOTER_HEIGHT_EXTRA; 
+          
+          const centerX = 297.64; 
+          const footerWidth = 500;
+          const leftX = centerX - footerWidth / 2;
+          const rightX = leftX + footerWidth;
       
-          const footerY = pageHeight - bottomMargin - footerHeight + 10; 
-    
-          doc.image('./src/assets/footer.png', 190, footerY + 35, { width: 200, height: 50 });
+          doc.lineWidth(0.5);
+          doc.moveTo(leftX, footerStartY)
+             .lineTo(rightX, footerStartY)
+             .stroke();
+          doc.lineWidth(1); 
+
+          const textStartY = footerStartY + 8; 
+          
+          doc.fontSize(7);
+          doc.text(process.env.DIRECCION_HOSPITAL || '', leftX, textStartY, {
+              width: footerWidth,
+              align: 'center'
+          });
+      
+          doc.text(`Tel: ${process.env.TELEFONO_HOSPITAL || ''}`, leftX, doc.y + 4, {
+              width: footerWidth,
+              align: 'center'
+          });
+      
+          doc.text(process.env.PAGINA_HOSPITAL || '', leftX, doc.y + 4, {
+              width: footerWidth,
+              align: 'center'
+          });
+      
+          const correos = [
+              process.env.CORREO2_HOSPITAL,
+              process.env.CORREO3_HOSPITAL,
+              process.env.CORREO4_HOSPITAL
+          ].filter(Boolean).join(' | ');
+      
+          doc.text(correos, leftX, doc.y + 4, {
+              width: footerWidth,
+              align: 'center'
+          });
       };
 
         doc.on('pageAdded', () => {
+          const pageHeight = doc.page.height;
+          doc.image('./src/assets/footer.png', 10, (pageHeight/2) - 100, { 
+              width: 20,
+              align: 'center',
+              valign: 'center'
+          });
+
           addHeader();
           addFooter();
       });
 
         doc.pipe(res);
-
         addHeader();
         addFooter();
 
@@ -459,7 +558,7 @@ export class DocumentService {
             width: rightMargin - leftMargin
         });
 
-        if (currentY + normativaHeight + 50 > doc.page.height - doc.page.margins.bottom) {
+        if (currentY + normativaHeight + 70 > doc.page.height - doc.page.margins.bottom - this.FOOTER_HEIGHT_EXTRA) {
             doc.addPage();
             currentY = 170;
         }
@@ -470,7 +569,7 @@ export class DocumentService {
         });
         currentY += normativaHeight + 30;
 
-        if (currentY + 150 > doc.page.height - doc.page.margins.bottom) {
+        if (currentY + 150 > doc.page.height - doc.page.margins.bottom - this.FOOTER_HEIGHT_EXTRA) {
             doc.addPage();
             currentY = 170; 
         }
@@ -497,7 +596,8 @@ export class DocumentService {
   private addSectionWithPageBreak(doc: PDFDocument, currentY: number, title: string, items: any[]): number {
     const leftMargin = 50;
     const rightMargin = 550;
-    
+    const safeTopMargin = 170;
+
     doc.fontSize(10).text(title, leftMargin, currentY);
     currentY += 20;
 
@@ -510,9 +610,9 @@ export class DocumentService {
     items.forEach(item => {
         const textHeight = doc.heightOfString(item.namePro, { width: 400 });
         
-        if (currentY + textHeight + 20 > doc.page.height - doc.page.margins.bottom) {
+        if (currentY + textHeight + 20 > doc.page.height - doc.page.margins.bottom - this.FOOTER_HEIGHT_EXTRA) {
             doc.addPage();
-            currentY = 50;
+            currentY = safeTopMargin;
         }
         
         doc.fontSize(9).text(item.codePro, leftMargin, currentY);
@@ -536,6 +636,13 @@ export class DocumentService {
     const signatureWidth = 200; 
     const signatureHeight = 100; 
     const gapBetweenSignatures = 50;
+    const totalSignatureHeight = 150;
+    
+    if (signatureStartY + totalSignatureHeight > doc.page.height - doc.page.margins.bottom - this.FOOTER_HEIGHT_EXTRA) {
+      doc.addPage();
+      signatureStartY = 170;
+    }
+    
     const lineY = signatureStartY + signatureHeight - 20; 
 
     if (admission.digitalSignature && admission.digitalSignature.signatureData) {

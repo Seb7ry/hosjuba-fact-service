@@ -43,9 +43,12 @@ export class AuthService {
      * @throws {InternalServerErrorException} - Si el usuario no existe o la contraseña es incorrecta.
      */
     async login(username: string, password: string): Promise<{ access_token: string; refresh_token: string; grupo: string }> {
-        const user = await this.admUsrService.findByUser(username);
-        if (!user) {
-            await this.logService.logAndThrow('warn', `Usuario no encontrado: ${username}`, 'AuthService');
+        let user;
+
+        try {
+            user = await this.admUsrService.findByUser(username);
+        } catch (error) {
+            await this.logService.log('warn', `Usuario no encontrado: ${username}`, 'AuthService');
             throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
         }
     
