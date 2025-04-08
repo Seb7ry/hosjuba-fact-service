@@ -17,8 +17,7 @@ import { SignatureModule } from './modules/signature.module';
 import { SqlServerConnectionModule } from './modules/sqlServerConnection.module';
 import { SqlServerConnectionService } from './service/sqlServerConnection.service';
 import { DocumentModule } from './modules/document.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { RefreshTokenInterceptor } from './interceptor/refreshToken.interceptor';
+import { StatModule } from './modules/stat.module';
 dotenv.config();
 
 /**
@@ -32,6 +31,7 @@ dotenv.config();
   imports: [
     LogModule,
     AuthModule,
+    StatModule,
     TokenModule,
     AdmUsrModule,
     DocumentModule,
