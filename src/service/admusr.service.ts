@@ -59,43 +59,6 @@ export class AdmUsrService {
     }
 
     /**
-     * Busca un usuario específico por su ID.
-     * 
-     * Realiza una consulta SQL para buscar un usuario por su ID. Si el usuario no existe en la base de datos,
-     * devuelve `null`. Si el usuario se encuentra, devuelve un objeto `AdmUsr` con los datos del usuario.
-     * 
-     * @param id - El ID del usuario a buscar.
-     * @returns {Promise<AdmUsr | null>} El usuario encontrado o `null` si no existe.
-     * @throws {InternalServerErrorException} Si ocurre un error al buscar el usuario.
-     */
-    async findById(id: string): Promise<any | null> {
-
-        const query = `
-            SELECT 
-                LTRIM(RTRIM(dbo.desencriptar(AUsrId))) AS username, 
-                LTRIM(RTRIM(AUsrDsc)) AS description, 
-                LTRIM(RTRIM(dbo.desencriptar(AUsrPsw))) AS password, 
-                LTRIM(RTRIM(AgrpId)) AS grupoId
-            FROM ADMUSR 
-            WHERE dbo.desencriptar(AUsrId) = @0
-            AND AUsrEst <> 'N'
-        `;
-
-        try {
-            const result = await this.datasource.query(query, [id]); 
-            if (result.length === 0) {
-                await this.logService.logAndThrow('warn', `Usuario con ID ${id} no encontrado.`, 'AdmUsrService');
-                return null;
-            }
-
-            return new AdmUsr(result[0].username, result[0].description, result[0].password, result[0].grupoId);
-        } catch (error) {
-            await this.logService.logAndThrow('error', `Error al buscar usuario por ID ${id}: ${error.message}`, 'AdmUsrService');
-            throw new InternalServerErrorException("No se pudo obtener el usuario.");
-        }
-    }
-
-    /**
      * Busca un usuario específico por su nombre de usuario.
      * 
      * Realiza una consulta SQL para buscar un usuario por su nombre de usuario en la base de datos.
