@@ -54,7 +54,11 @@ export class AdmissionService {
                     LTRIM(RTRIM(CB.MPApe1)), ' ', 
                     LTRIM(RTRIM(CB.MPApe2))
                 ) AS fullNamePatient,
-                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient
+                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
+                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
+                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
+                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
+                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
             FROM INGRESOS I
             JOIN CAPBAS CB
                 ON I.MPCedu = CB.MPCedu
