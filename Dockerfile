@@ -1,5 +1,5 @@
 # Dockerfile
-FROM node:20.19.0
+FROM node:20.19.0-slim
 
 # Crear el directorio de trabajo
 WORKDIR /app
