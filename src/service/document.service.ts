@@ -3,47 +3,64 @@ import * as PDFDocument from 'pdfkit';
 import { Response } from 'express';
 import { Request } from 'mssql';
 
-import { SqlServerConnectionService } from './sqlServerConnection.service';
 import { AdmissionService } from './admission.service';
 import { SignatureService } from './signature.service';
 import { LogService } from './log.service';
 
-/**
- * Servicio para generación de documentos PDF y manejo de datos relacionados
- * 
- * Proporciona funcionalidades para:
- * - Generar comprobantes de admisión en PDF
- * - Consultar información de facturas
- * - Mapear valores de enumeraciones
- */
 @Injectable()
 export class DocumentService {
 
   private readonly FOOTER_HEIGHT_EXTRA = 55;
 
+  private getLocalProceduresAndSupplies(consecutiveAdmission: string) {
+    const mock = {
+      procedures: [],
+      supplies: []
+    };
+  
+    if (consecutiveAdmission === 'ADM-2025-0001') {
+      mock.procedures = [
+        { codePro: 'P001', namePro: 'Curación menor' },
+        { codePro: 'P002', namePro: 'Aplicación de inyección' },
+        { codePro: 'P003', namePro: 'Electrocardiograma' }
+      ];
+      mock.supplies = [
+        { codePro: 'S001', namePro: 'Gasas estériles' },
+        { codePro: 'S002', namePro: 'Jeringa 5ml' },
+        { codePro: 'S003', namePro: 'Solución salina' },
+        { codePro: 'S004', namePro: 'Guantes quirúrgicos' },
+        { codePro: 'S005', namePro: 'Esparadrapo' }
+      ];
+    }
+  
+    if (consecutiveAdmission === 'ADM-2025-0002') {
+      mock.procedures = [
+        { codePro: 'P004', namePro: 'Toma de presión arterial' },
+        { codePro: 'P005', namePro: 'Consulta general' },
+        { codePro: 'P006', namePro: 'Evaluación médica' }
+      ];
+      mock.supplies = [
+        { codePro: 'S006', namePro: 'Alcohol antiséptico' },
+        { codePro: 'S007', namePro: 'Termómetro digital' },
+        { codePro: 'S008', namePro: 'Tensiómetro manual' }
+      ];
+    }
+  
+    return mock;
+  }  
+
   constructor(
     private readonly admissionService: AdmissionService,
     private readonly signatureService: SignatureService,
-    private readonly sqlServerConnectionService: SqlServerConnectionService,
     private readonly logService: LogService
   ) {}
 
-  /**
-   * Mapea códigos de tipo de admisión a su descripción correspondiente
-   * @param typeAdmission - Código numérico del tipo de admisión
-   * @returns Descripción textual del tipo de admisión
-   */
   async mapService(typeAdmission: string): Promise<string> {
     if(typeAdmission === '1') return "Urgencias"
     if(typeAdmission === '99') return "Consulta Externa"
     return "Hospitalización"
   }
 
-  /**
-   * Mapea códigos de relación de acompañante a su descripción
-   * @param relationCompanion - Código alfabético de relación
-   * @returns Descripción textual de la relación
-   */
   async mapRelation(relationCompanion: string): Promise<string> {
     if(relationCompanion === 'H') return "Hijo(a)"
     if(relationCompanion === 'F') return "Familiar"
@@ -52,12 +69,6 @@ export class DocumentService {
     if(relationCompanion === 'O') return "Otro"
   }
 
-  /**
-   * Método auxiliar para corregir el formato de las fechas obtenidas
-   * de la base de datos MongoDB.
-   * @param date Fecha a modificar el formato
-   * @returns Fecha con el formator adecuadl Ej: xx/xx/xxxx
-   */
   private formatDate(date: Date | string): string {
     const d = typeof date === 'string' ? new Date(date) : date;
     const day = d.getDate().toString().padStart(2, '0');
@@ -66,165 +77,95 @@ export class DocumentService {
     return `${day}/${month}/${year}`;
   }
 
-  /**
-   * Obtiene lista de facturas asociadas a una admisión
-   * @param req - Objeto Request de la solicitud HTTP
-   * @param documentPatient - Documento de identidad del paciente
-   * @param consecutiveAdmission - Consecutivo de la admisión
-   * @returns Array con registros de facturas
-   * @throws InternalServerErrorException Si falla la consulta a la base de datos
-   */
   async getFact(req: Request, documentPatient: string, consecutiveAdmission: string): Promise<any[]> {
-    const pool = await this.sqlServerConnectionService.getConnectionPool();
-    const query = `
-        SELECT 
-          FacDscPrf,
-          MPNFac 
-        FROM MAEATE 
-        WHERE MPCedu = @documentPatient 
-        AND MaCtvIng = @consecutiveAdmission 
-        AND MAEstF NOT IN (1,10);`
-
-    try{
-        const result = await pool
-        .request()
-        .input('documentPatient', documentPatient) 
-        .input('consecutiveAdmission', consecutiveAdmission)
-        .query(query);
-        return result.recordset;
-    } catch(error){
-        await this.logService.logAndThrow('error',`Error al obtener la lista de facturas de la admisión [documento: ${documentPatient} y consecutivo: ${consecutiveAdmission}] : ${error}`, 'DocumentService');
-        throw new InternalServerErrorException("No se pudo obtener la lista de admisiones.", error);
+    try {
+      const facturasMap: Record<string, any[]> = {
+        'ADM-2025-0001': [
+          { FacDscPrf: 'Factura de urgencias 1', MPNFac: 'FAC001' },
+          { FacDscPrf: 'Factura de urgencias 2', MPNFac: 'FAC002' }
+        ],
+        'ADM-2025-0002': [
+          { FacDscPrf: 'Factura de consulta 1', MPNFac: 'FAC003' },
+          { FacDscPrf: 'Factura de consulta 2', MPNFac: 'FAC004' }
+        ]
+      };
+  
+      return facturasMap[consecutiveAdmission] || [];
+    } catch (error) {
+      await this.logService.logAndThrow(
+        'error',
+        `Error al obtener facturas locales [doc: ${documentPatient}, admisión: ${consecutiveAdmission}] : ${error}`,
+        'DocumentService'
+      );
+      throw new InternalServerErrorException('No se pudo obtener la lista de facturas.', error);
     }
   }
 
-  /**
-   * Obtiene el pabellón de atención de una admisión y su respectiva factura
-   * @param req - Objeto Request de la solicitud HTTP
-   * @param documentPatient - Documento de identidad del paciente
-   * @param consecutiveAdmission - Consecutivo de la admisión
-   * @param numberFac - Número de la factura
-   * @returns String del pabellón
-   * @throws InternalServerErrorException Si falla la consulta a la base de datos
-   */
   async getPab(req: Request, documentPatient: string, consecutiveAdmission: number, numberFac: string): Promise<string> {
-    const pool = await this.sqlServerConnectionService.getConnectionPool();
-    const query = `
-        SELECT 
-            FacCodPab 
-        FROM MAEATE 
-        WHERE MPCedu= @documentPatient 
-            AND MaCtvIng = @consecutiveAdmission 
-            AND MPNFac = @numberFac 
-            AND MAEstF NOT IN (1,10);
-    `;
     try {
-        const result = await pool
-            .request()
-            .input('documentPatient', documentPatient)
-            .input('consecutiveAdmission', consecutiveAdmission)
-            .input('numberFac', numberFac)
-            .query(query);
-
-        return result.recordset.length > 0 ? result.recordset[0].FacCodPab.toString() : 'N/A';
+      const pabellones: Record<string, string> = {
+        'FAC001': '1',
+        'FAC002': '2',
+        'FAC003': '99',
+        'FAC004': '99'
+      };
+  
+      return pabellones[numberFac] || 'Pabellón desconocido';
     } catch (error) {
-        await this.logService.logAndThrow(
-            'error',
-            `Error al obtener los pabellones del [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
-            'DocumentService'
-        );
-        throw new InternalServerErrorException("No se pudieron obtener los detalles de la factura.", error);
+      await this.logService.logAndThrow(
+        'error',
+        `Error al obtener pabellón [doc: ${documentPatient}, admisión: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
+        'DocumentService'
+      );
+      throw new InternalServerErrorException('No se pudo obtener el pabellón.', error);
     }
-  }
+  }  
 
-  /**
-   * Obtiene detalles de procedimientos de una factura específica
-   * @param req - Objeto Request de la solicitud HTTP
-   * @param documentPatient - Documento de identidad del paciente
-   * @param consecutiveAdmission - Consecutivo de la admisión
-   * @param numberFac - Número de factura a consultar
-   * @returns Array con detalles de procedimientos
-   * @throws InternalServerErrorException Si falla la consulta a la base de datos
-   */
   async getFactDetailsPro(req: Request, documentPatient: string, consecutiveAdmission: string, numberFac: string): Promise<any[]> {
-      const pool = await this.sqlServerConnectionService.getConnectionPool();
-      const query = `
-          SELECT 
-              LTRIM(RTRIM(MAEATE2.PRCODI)) AS codePro,
-              LTRIM(RTRIM(MAEPRO.PrNomb)) AS namePro
-          FROM MAEATE
-            JOIN MAEATE2 ON MAEATE.MPNFac = MAEATE2.MPNFac AND MAEATE.MATipDoc = MAEATE2.MATipDoc
-            JOIN MAEPRO ON MAEATE2.PRCODI = MAEPRO.PRCODI
-          WHERE MAEATE.MPCedu = @documentPatient
-            AND MAEATE.MaCtvIng = @consecutiveAdmission
-            AND MAEATE.MAEstF NOT IN (1,10)
-            AND MAEATE.MPNFac = @numberFac
-            AND MAEATE2.MaEsAnuP <> 'S'
-          GROUP BY MAEATE2.PRCODI, MAEPRO.PrNomb;
-      `;
-
-      try {
-          const result = await pool
-              .request()
-              .input('documentPatient', documentPatient)
-              .input('consecutiveAdmission', consecutiveAdmission)
-              .input('numberFac', numberFac)
-              .query(query);
-
-          return result.recordset;
-      } catch (error) {
-          await this.logService.logAndThrow(
-              'error',
-              `Error al obtener detalles de los procedimientos del [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
-              'DocumentService'
-          );
-          throw new InternalServerErrorException("No se pudieron obtener los detalles de la factura.", error);
-      }
-  }
-
-  /**
-   * Obtiene detalles de suministros de una factura específica
-   * @param req - Objeto Request de la solicitud HTTP
-   * @param documentPatient - Documento de identidad del paciente
-   * @param consecutiveAdmission - Consecutivo de la admisión
-   * @param numberFac - Número de factura a consultar
-   * @returns Array con detalles de suministros asociados a la factura
-   * @throws InternalServerErrorException Si falla la consulta a la base de datos
-   */
-  async getFactDetailsSum(req: Request, documentPatient: string, consecutiveAdmission: string, numberFac: string): Promise<any[]> {
-    const pool = await this.sqlServerConnectionService.getConnectionPool();
-    const query = `
-        SELECT 
-            LTRIM(RTRIM(MAEATE3.MSRESO)) AS codePro,
-            LTRIM(RTRIM(MAESUM1.MSNOMG)) AS namePro
-        FROM MAEATE3
-          JOIN MAEATE ON MAEATE3.MPNFac = MAEATE.MPNFac AND MAEATE.MATipDoc = MAEATE3.MATipDoc
-          JOIN MAESUM1 ON MAEATE3.MSRESO = MAESUM1.MSRESO
-        WHERE MAEATE3.MPNFac = @numberFac 
-          AND MAEATE.MAEstF NOT IN (1,10) 
-          AND MAEATE3.FCSTPOTRN <> 'H'  
-          AND MAEATE3.MAESANUS <> 'S'
-        GROUP BY MAEATE3.MSRESO, MAESUM1.MSNOMG;
-    `;
-
     try {
-        const result = await pool
-            .request()
-            .input('documentPatient', documentPatient)
-            .input('consecutiveAdmission', consecutiveAdmission)
-            .input('numberFac', numberFac)
-            .query(query);
-
-        return result.recordset;
+      const { procedures } = this.getLocalProceduresAndSupplies(consecutiveAdmission);
+  
+      const facturaMap: Record<string, string[]> = {
+        'FAC001': ['P001', 'P002'],
+        'FAC002': ['P003'],
+        'FAC003': ['P004'],
+        'FAC004': ['P005', 'P006']
+      };
+  
+      const codes = facturaMap[numberFac] || [];
+      return procedures.filter(p => codes.includes(p.codePro));
     } catch (error) {
-        await this.logService.logAndThrow(
-            'error',
-            `Error al obtener detalles de los suministros del [documento: ${documentPatient}, consecutivo: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
-            'DocumentService'
-        );
-        throw new InternalServerErrorException("No se pudieron obtener los detalles de la factura.", error);
+      await this.logService.logAndThrow(
+        'error',
+        `Error al obtener procedimientos locales [doc: ${documentPatient}, admisión: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
+        'DocumentService'
+      );
+      throw new InternalServerErrorException('No se pudieron obtener los procedimientos.', error);
     }
-  }
+  }  
+
+  async getFactDetailsSum(req: Request, documentPatient: string, consecutiveAdmission: string, numberFac: string): Promise<any[]> {
+    try {
+      const { supplies } = this.getLocalProceduresAndSupplies(consecutiveAdmission);
+  
+      const facturaMap: Record<string, string[]> = {
+        'FAC001': ['S001', 'S002'],
+        'FAC002': ['S003', 'S004', 'S005'],
+        'FAC003': ['S006'],
+        'FAC004': ['S007', 'S008']
+      };
+  
+      const codes = facturaMap[numberFac] || [];
+      return supplies.filter(s => codes.includes(s.codePro));
+    } catch (error) {
+      await this.logService.logAndThrow(
+        'error',
+        `Error al obtener suministros locales [doc: ${documentPatient}, admisión: ${consecutiveAdmission}, factura: ${numberFac}] : ${error}`,
+        'DocumentService'
+      );
+      throw new InternalServerErrorException('No se pudieron obtener los suministros.', error);
+    }
+  }  
 
   /**
    * Genera un PDF con el comprobante de admisión básico

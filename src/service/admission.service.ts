@@ -1,12 +1,10 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { LeanDocument, Model } from 'mongoose';
 import { InjectModel } from "@nestjs/mongoose";
-import { DataSource } from "typeorm";
 import { Request } from 'mssql';
 
 import { Admission, AdmissionDocument } from "src/model/admission.model";
 
-import { SqlServerConnectionService } from "./sqlServerConnection.service";
 import { SignatureService } from "./signature.service";
 import { LogService } from "./log.service";
 
@@ -14,275 +12,155 @@ import * as dotenv from 'dotenv';
 
 dotenv.config(); 
 
-/**
- * Servicio para gestión de admisiones médicas
- * 
- * Este servicio maneja:
- * - Consulta de admisiones desde SQL Server
- * - Almacenamiento en MongoDB con firmas digitales
- * - Búsqueda avanzada con múltiples filtros
- * - Manejo de firmas digitales asociadas
- */
 @Injectable()
 export class AdmissionService {
+
+    private readonly staticAdmissions: Admission[] = [
+        {
+            consecutiveAdmission: 'ADM-2025-0001',
+            dateAdmission: new Date('2025-01-01T08:00:00Z'),
+            typeAdmission: '1',
+            userAdmission: 'USER2',
+            typeDocumentPatient: 'CC',
+            documentPatient: '1234567890',
+            fullNamePatient: 'Juan Pérez',
+            phonePatient: '3001231231',
+            typeDocumentCompanion: 'CC',
+            documentCompanion: '9988776655',
+            nameCompanion: 'María González',
+            phoneCompanion: '3101231231',
+            relationCompanion: 'F',
+            digitalSignature: undefined,
+            toObject: () => null 
+        },
+        {
+            consecutiveAdmission: 'ADM-2025-0002',
+            dateAdmission: new Date('2025-02-10T10:30:00Z'),
+            typeAdmission: '99',
+            userAdmission: 'USER1',
+            typeDocumentPatient: 'TI',
+            documentPatient: '1122334455',
+            fullNamePatient: 'Carlos Ruiz',
+            phonePatient: '3111231231',
+            typeDocumentCompanion: 'CC',
+            documentCompanion: '4455667788',
+            nameCompanion: 'Laura Ríos',
+            phoneCompanion: '3011231231',
+            relationCompanion: 'A',
+            digitalSignature: undefined,
+            toObject: () => null 
+        },
+        {
+            consecutiveAdmission: 'ADM-2025-0003',
+            dateAdmission: new Date('2025-03-15T16:45:00Z'),
+            typeAdmission: '3',
+            userAdmission: 'USER2',
+            typeDocumentPatient: 'CE',
+            documentPatient: '6677889900',
+            fullNamePatient: 'Ana Torres',
+            phonePatient: '3121231231',
+            typeDocumentCompanion: 'CE',
+            documentCompanion: '2233445566',
+            nameCompanion: 'Pedro Torres',
+            phoneCompanion: '3101231231',
+            relationCompanion: 'O',
+            digitalSignature: undefined,
+            toObject: () => null 
+        }
+    ];
 
     constructor(
         @InjectModel(Admission.name) private admissionModel: Model<AdmissionDocument>,
         private readonly signatureService: SignatureService,
-        private readonly datasource: DataSource,
         private readonly logService: LogService,
-        private readonly sqlService: SqlServerConnectionService
     ) { }
 
-    /**
-     * Obtiene todas las admisiones desde SQL Server
-     * @param req Objeto Request para logging
-     * @returns Listado completo de admisiones
-     * @throws InternalServerErrorException Si falla la consulta
-     */
     async getAllAdmissions(req: Request): Promise<Admission[]> {
-        const query = `
-            SELECT 
-                I.IngCsc AS consecutiveAdmission,
-                I.IngFecAdm AS dateAdmission,
-                I.MPCodP AS typeAdmission,
-                LTRIM(RTRIM(dbo.desencriptar(I.IngUsrReg))) AS userAdmission,
-                LTRIM(RTRIM(I.MPCedu)) AS documentPatient,
-                CONCAT(
-                    LTRIM(RTRIM(CB.MPNom1)), ' ', 
-                    LTRIM(RTRIM(CB.MPNom2)), ' ', 
-                    LTRIM(RTRIM(CB.MPApe1)), ' ', 
-                    LTRIM(RTRIM(CB.MPApe2))
-                ) AS fullNamePatient,
-                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
-                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
-                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
-                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
-            FROM INGRESOS I
-            JOIN CAPBAS CB
-                ON I.MPCedu = CB.MPCedu
-            AND I.MPTDoc = CB.MPTDoc
-            JOIN TMPFAC TF
-                ON I.IngCsc = TF.TmCtvIng
-                AND I.MPCedu = TF.TFCedu
-                AND I.MPTDoc = TF.TFTDoc
-            ORDER BY I.IngFecAdm DESC`;
-
         try {
-            const admissions = await this.datasource.query(query);
-            return admissions;
+            return this.staticAdmissions;
         } catch (error) {
-            await this.logService.log('error', `Error al obtener la lista de admisiones: ${error}`, 'AdmissionService', undefined, req.user.username);
-            throw new InternalServerErrorException("No se pudo obtener la lista de admisiones.", error);
+            await this.logService.log('error', `Error al obtener las admisiones locales: ${error}`, 'AdmissionService', undefined, req.user?.username);
+            throw new InternalServerErrorException("Error al obtener las admisiones.");
         }
     }
 
-    /**
-     * Busca admisiones con múltiples filtros
-     * @param req Objeto Request para logging
-     * @param documentPatient Documento del paciente (requerido)
-     * @param consecutiveAdmission Consecutivo de admisión
-     * @param startDateAdmission Fecha de inicio
-     * @param endDateAdmission Fecha de fin
-     * @param userAdmission Usuario que registró
-     * @param typeAdmission Tipo de admisión
-     * @returns Listado de admisiones filtradas
-     * @throws InternalServerErrorException Si falla la consulta
-     */
-    async getAdmissionFiltrer(req: Request, documentPatient: string, consecutiveAdmission: string, 
-        startDateAdmission: string, endDateAdmission: string,
-        userAdmission: string, typeAdmission: string): Promise<Admission[]> {
-
-        let mesage = 'Filtro(s):';
-
+    async getAdmissionFiltrer(
+        req: Request,
+        documentPatient: string,
+        consecutiveAdmission: string,
+        startDateAdmission: string,
+        endDateAdmission: string,
+        userAdmission: string,
+        typeAdmission: string
+    ): Promise<Admission[]> {
+        let message = 'Filtro(s):';
+    
+        try {
             if (startDateAdmission && endDateAdmission) {
                 const start = new Date(startDateAdmission);
                 const end = new Date(endDateAdmission);
     
-                if (start >= end) {
-        
-                await this.logService.log('warn', 'La fecha de inicio debe ser menor a la fecha final en los filtros de búsqueda.', 'AdmissionService', undefined, req.user.username);
-                throw new InternalServerErrorException("La fecha de inicio debe ser menor a la fecha final.");
+                if (start > end) {
+                    await this.logService.log('warn', 'La fecha de inicio debe ser menor a la fecha final.', 'AdmissionService', undefined, req.user?.username);
+                    throw new InternalServerErrorException("La fecha de inicio debe ser menor a la fecha final.");
+                }
             }
-        }
-        
-        let query = `
-            SELECT 
-                I.IngCsc AS consecutiveAdmission,
-                I.IngFecAdm AS dateAdmission,
-                I.MPCodP AS typeAdmission,
-                LTRIM(RTRIM(dbo.desencriptar(I.IngUsrReg))) AS userAdmission,
-                I.MPTDoc AS typeDocumentPatient,
-                LTRIM(RTRIM(I.MPCedu)) AS documentPatient,
-                CONCAT(
-                    LTRIM(RTRIM(CB.MPNom1)), ' ', 
-                    LTRIM(RTRIM(CB.MPNom2)), ' ', 
-                    LTRIM(RTRIM(CB.MPApe1)), ' ', 
-                    LTRIM(RTRIM(CB.MPApe2))
-                ) AS fullNamePatient,
-                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-                LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
-                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
-                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
-                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
-                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
-            FROM INGRESOS I
-                JOIN CAPBAS CB
-                    ON I.MPCedu = CB.MPCedu
-                    AND I.MPTDoc = CB.MPTDoc
-                AND I.MPCedu = @documentPatient`; 
-
-        if (consecutiveAdmission) {
-            query += ` AND I.IngCsc = @consecutiveAdmission`;
-        }
-
-        if (startDateAdmission && endDateAdmission) {
-            const start = new Date(startDateAdmission);
-            start.setUTCHours(0, 0, 0, 0);
-
-            const end = new Date(endDateAdmission);
-            end.setUTCHours(23, 59, 59, 999);
-
-            query += ` AND I.IngFecAdm BETWEEN @start AND @end`;
-        }
-
-        if (startDateAdmission && !endDateAdmission) {
-            const start = new Date(startDateAdmission);
-            start.setUTCHours(0, 0, 0, 0); 
-
-            const end = new Date(startDateAdmission);
-            end.setUTCHours(23, 59, 59, 999);
-
-            query += ` AND I.IngFecAdm BETWEEN @start AND @end`;
-        }
-
-        if (userAdmission) {
-            query += ` AND dbo.desencriptar(I.IngUsrReg) = @userAdmission`;
-        }
-
-        if (typeAdmission) {
-            query += ` AND I.MPCodP = @typeAdmission`;
-        }
-
-        query += ` ORDER BY I.IngFecAdm DESC`;
-
-        try {
-            const connectionPool = this.sqlService.getConnectionPool();
-            connectionPool.config.requestTimeout = 60000;
-
-            const request = new Request(connectionPool);
-
+    
+            let filtered = [...this.staticAdmissions];
+    
             if (documentPatient) {
-                mesage += ` documento: ${documentPatient}`;
-                request.input('documentPatient', documentPatient);
+                message += ` documento: ${documentPatient}`;
+                filtered = filtered.filter(a => a.documentPatient === documentPatient);
             }
-
+    
             if (consecutiveAdmission) {
-                mesage += ` consecutivo: ${consecutiveAdmission}`;
-                request.input('consecutiveAdmission', consecutiveAdmission);
+                message += ` consecutivo: ${consecutiveAdmission}`;
+                filtered = filtered.filter(a => a.consecutiveAdmission === consecutiveAdmission);
             }
-
-            if (startDateAdmission || endDateAdmission) {
+    
+            if (startDateAdmission && endDateAdmission) {
                 const start = new Date(startDateAdmission);
-                start.setUTCHours(0, 0, 0, 0);
-
-                const end = endDateAdmission ? new Date(endDateAdmission) : new Date(start);
-                end.setUTCHours(23, 59, 59, 999);
-
-                request.input('start', start);
-                request.input('end', end);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(endDateAdmission);
+                end.setHours(23, 59, 59, 999);
+                message += ` fechaInicio: ${startDateAdmission}, fechaFinal: ${endDateAdmission}`;
+                filtered = filtered.filter(a => a.dateAdmission >= start && a.dateAdmission <= end);
             }
-
-            if(startDateAdmission) mesage += ` fechaInicio: ${startDateAdmission}`;
-            if(endDateAdmission) mesage += ` fechaFinal: ${endDateAdmission}`;
-
+    
+            if (startDateAdmission && !endDateAdmission) {
+                const start = new Date(startDateAdmission);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(startDateAdmission);
+                end.setHours(23, 59, 59, 999);
+                message += ` fechaExacta: ${startDateAdmission}`;
+                filtered = filtered.filter(a => a.dateAdmission >= start && a.dateAdmission <= end);
+            }
+    
             if (userAdmission) {
-                mesage += ` usuarioAdmision: ${userAdmission}`;
-                request.input('userAdmission', userAdmission);
+                message += ` usuarioAdmision: ${userAdmission}`;
+                filtered = filtered.filter(a => a.userAdmission === userAdmission);
             }
-
+    
             if (typeAdmission) {
-                mesage += ` tipoAdmision: ${typeAdmission}`;
-                request.input('typeAdmission', typeAdmission);
+                message += ` tipoAdmision: ${typeAdmission}`;
+                filtered = filtered.filter(a => a.typeAdmission === typeAdmission);
             }
-
-            await this.logService.log('info', `Buscó el listado de admisiones disponiblesa.a ${mesage}.`, 'Admisiones', undefined, req.user.username);
-            const result = await request.query(query);
-
-            if (result.recordset.length === 0) {
-                return [];
-            }
-
-            return result.recordset;
-
+    
+            await this.logService.log('info', `Consulta local de admisiones con filtros: ${message}`, 'AdmissionService', undefined, req.user?.username);
+    
+            return filtered;
         } catch (error) {
-            await this.logService.logAndThrow('error', `Error al ejecutar la consulta filtrada de admisiones: ${error.message}`, 'AdmissionService');
-            throw new InternalServerErrorException("No se pudo obtener la admisión.", error);
+            await this.logService.log('error', `Error al filtrar admisiones localmente: ${error}`, 'AdmissionService', undefined, req.user?.username);
+            throw new InternalServerErrorException("Error al obtener las admisiones locales.");
         }
     }
 
-    /**
-     * Obtiene una admisión específica por documento y consecutivo
-     * @param documentPatient Documento del paciente
-     * @param consecutiveAdmission Consecutivo de admisión
-     * @returns Datos de la admisión
-     * @throws InternalServerErrorException Si falla la consulta
-     */
-    async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission> {
-        const query = `
-            SELECT 
-                I.IngCsc AS consecutiveAdmission,
-                I.IngFecAdm AS dateAdmission,
-                I.MPCodP AS typeAdmission,
-                LTRIM(RTRIM(dbo.desencriptar(I.IngUsrReg))) AS userAdmission,
-                I.MPTDoc AS typeDocumentPatient,
-                LTRIM(RTRIM(I.MPCedu)) AS documentPatient,
-                CONCAT(
-                    LTRIM(RTRIM(CB.MPNom1)), ' ', 
-                    LTRIM(RTRIM(CB.MPNom2)), ' ', 
-                    LTRIM(RTRIM(CB.MPApe1)), ' ', 
-                    LTRIM(RTRIM(CB.MPApe2))
-                ) AS fullNamePatient,
-                LTRIM(RTRIM(CB.MPTELE)) AS phonePatient,
-                LTRIM(RTRIM(I.IngTiDoAc)) AS typeDocumentCompanion,
-                LTRIM(RTRIM(I.IngDoAco)) AS documentCompanion,
-                LTRIM(RTRIM(I.IngNoAc)) AS nameCompanion,
-                LTRIM(RTRIM(I.IngTeAc)) AS phoneCompanion,
-                LTRIM(RTRIM(I.IngParAc)) AS relationCompanion
-            FROM INGRESOS I
-            LEFT JOIN CAPBAS CB
-                ON I.MPCedu = CB.MPCedu
-                AND I.MPTDoc = CB.MPTDoc
-            WHERE I.MPCedu = @documentPatient
-            AND I.IngCsc = @consecutiveAdmission`;
-    
-        try {
-            const connectionPool = this.sqlService.getConnectionPool();
-            connectionPool.config.requestTimeout = 60000;
-    
-            const request = new Request(connectionPool);
-            request.input('documentPatient', documentPatient);
-            request.input('consecutiveAdmission', consecutiveAdmission);
-    
-            const result = await request.query(query);
-            return result.recordset.length > 0 ? result.recordset[0] : null;
-        } catch (error) {
-            await this.logService.logAndThrow('error', `Error al obtener la admisión específica buscada: ${error.message}`, 'AdmissionService');
-            throw new InternalServerErrorException("No se pudo obtener la admisión.", error);
-        }
-    }    
+    async getAdmissionByKeys(documentPatient: string, consecutiveAdmission: string): Promise<Admission | null> {
+        return this.staticAdmissions.find(
+            a => a.documentPatient === documentPatient && a.consecutiveAdmission === consecutiveAdmission
+        ) || null;
+    }  
 
-    /**
-     * Guarda una admisión con firma digital en MongoDB
-     * @param req Objeto Request para logging
-     * @param documentPatient Documento del paciente
-     * @param consecutiveAdmission Consecutivo de admisión
-     * @param signature Firma digital en base64
-     * @param signedBy Tipo de firmante (paciente/acompañante)
-     * @returns Admisión guardada
-     * @throws InternalServerErrorException Si falla el guardado
-     */
     async saveAdmission(
         req: Request,
         documentPatient: string,
@@ -300,7 +178,7 @@ export class AdmissionService {
         const signatureData = await this.signatureService.storeSignature(signature, `firma_${documentPatient}_${consecutiveAdmission}.png`);
     
         const admission = new this.admissionModel({
-            ...admissionData, // Ya es un objeto plano, no necesita .toObject()
+            ...admissionData,
             digitalSignature: {
                 signedBy: signedBy,
                 signatureData: signatureData 
@@ -323,14 +201,6 @@ export class AdmissionService {
         }
     }
 
-    /**
-     * Actualiza una admisión manteniendo la firma digital existente
-     * @param req Objeto Request para logging
-     * @param documentPatient Documento del paciente
-     * @param consecutiveAdmission Consecutivo de admisión
-     * @returns Admisión actualizada
-     * @throws InternalServerErrorException Si falla la actualización
-     */
     async updateAdmission(
         req: Request,
         documentPatient: string,
@@ -383,12 +253,6 @@ export class AdmissionService {
         }
     }    
     
-    /**
-     * Obtiene admisiones firmadas específicas
-     * @param admissions Array de {documentPatient, consecutiveAdmission}
-     * @returns Listado de admisiones firmadas
-     * @throws InternalServerErrorException Si falla la consulta
-     */
     async getSignedAdmissions(admissions: { documentPatient: string; consecutiveAdmission: number }[]): Promise<any[]> {
         try {
             if (!admissions || admissions.length === 0) {
@@ -413,11 +277,6 @@ export class AdmissionService {
         }
     }    
 
-    /**
-     * Obtiene todas las admisiones firmadas
-     * @returns Listado completo de admisiones firmadas
-     * @throws InternalServerErrorException Si falla la consulta
-     */
     async getSignedAdmissionsAll(): Promise<any[]>{
         try {
             const allAdmissions = await this.admissionModel.find()
@@ -431,13 +290,6 @@ export class AdmissionService {
         }
     }
 
-    /**
-     * Verifica si una admisión específica tiene firma digital
-     * @param documentPatient Documento del paciente
-     * @param consecutiveAdmission Consecutivo de admisión
-     * @returns Admisión firmada o null
-     * @throws InternalServerErrorException Si falla la consulta
-     */
     async getSignedAdmissionKeys(documentPatient: string, consecutiveAdmission: number): Promise<any | null> {
         try {
             if (!documentPatient || consecutiveAdmission === undefined) {
@@ -459,18 +311,6 @@ export class AdmissionService {
         }
     }
 
-    /**
-     * Filtra admisiones firmadas con múltiples criterios
-     * @param req Objeto Request para logging
-     * @param documentPatient Documento del paciente
-     * @param consecutiveAdmission Consecutivo de admisión
-     * @param startDateAdmission Fecha de inicio
-     * @param endDateAdmission Fecha de fin
-     * @param userAdmission Usuario que registró
-     * @param typeAdmission Tipo de admisión
-     * @returns Listado de admisiones filtradas
-     * @throws InternalServerErrorException Si falla la consulta
-     */
     async getSignedAdmissionsFiltrer(
         req: Request,
         documentPatient?: string,
@@ -483,7 +323,7 @@ export class AdmissionService {
         let mesage = 'Filtro(s): ';
         
          try {
-            let query: any = { };
+            const query: any = { };
     
             if (documentPatient){
                 mesage += ` documento: ${documentPatient}`;

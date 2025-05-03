@@ -1,6 +1,4 @@
 import { Admission, AdmissionSchema } from 'src/model/admission.model';
-
-import { SqlServerConnectionModule } from './sqlServerConnection.module';
 import { SignatureModule } from './signature.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { LogModule } from './log.module';
@@ -25,7 +23,6 @@ import { AdmUsrModule } from './admusr.module';
             secret: process.env.JWT_SECRET,
             signOptions: { expiresIn: process.env.TIME_SESSION },
         }),
-        SqlServerConnectionModule,
         MongooseModule.forFeature([{ name: Admission.name, schema: AdmissionSchema }]),
     ], 
     controllers: [
