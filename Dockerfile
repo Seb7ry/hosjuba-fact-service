@@ -1,13 +1,13 @@
-# Dockerfile
+# Etapa base
 FROM node:20.19.0-slim
 
-# Crear el directorio de trabajo
+# Crear directorio de trabajo
 WORKDIR /app
 
-# Copiar los archivos de dependencia primero
+# Copiar dependencias
 COPY package*.json ./
 
-# Instalar dependencias con legacy-peer-deps
+# Instalar dependencias (usando legacy-peer-deps si es necesario)
 RUN npm install --legacy-peer-deps
 
 # Copiar el resto del código
@@ -16,8 +16,8 @@ COPY . .
 # Construir la aplicación
 RUN npm run build
 
-# Exponer el puerto (ajústalo si usas otro en tu .env)
+# Expone el puerto en que correrá NestJS
 EXPOSE 3000
 
-# Comando para ejecutar la app
+# Comando de inicio
 CMD ["npm", "run", "start:prod"]
