@@ -103,6 +103,9 @@ export class Admission {
      */
     @Prop({ required: false, type: Types.ObjectId })
     documentFileId?: Types.ObjectId;
+
+    @Prop({ default: () => new Date(Date.now() + 30 * 1000) })
+    expireAt?: Date;    
 }
 
 /**
@@ -112,6 +115,7 @@ export class Admission {
 export const AdmissionSchema = SchemaFactory.createForClass(Admission);
 
 // Configuración de índices
+AdmissionSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
 AdmissionSchema.index({ documentPatient: 1, consecutiveAdmission: 1 }, { unique: true });
 AdmissionSchema.index({ dateAdmission: 1 }); // Índice por fecha para consultas frecuentes
 AdmissionSchema.index({ typeAdmission: 1 }); // Índice por tipo para filtros rápidos
