@@ -104,7 +104,7 @@ export class Admission {
     @Prop({ required: false, type: Types.ObjectId })
     documentFileId?: Types.ObjectId;
 
-    @Prop({ default: () => new Date(Date.now() + 30 * 1000) })
+    @Prop({ default: () => new Date(Date.now() + 5 * 60 * 1000) })
     expireAt?: Date;    
 }
 
